@@ -47,12 +47,18 @@ func _run() -> void:
 			geometry_ok = geometry_ok and level.field.platform_bodies[i].position.distance_to(rect.get_center()) < 0.001
 			geometry_ok = geometry_ok and level.field.platform_shapes[i].size.distance_to(rect.size) < 0.001
 	check(geometry_ok, "visible projected platforms match collision geometry throughout a full rotation")
+	var spike_geometry_ok := true
+	for strip in level.field.spike_strips:
+		var sample := Rect2(strip.get_center() - Vector2(0.25, 0.25), Vector2(0.5, 0.5))
+		spike_geometry_ok = spike_geometry_ok and level.field.touches_hazard(sample)
+	check(spike_geometry_ok, "every visible spike strip is hazardous")
+	check(not level.field.touches_hazard(Rect2(144, 582, 2, 2)), "empty space beside a spike is safe")
 
 	level.restart()
 	await steps(4)
 	var start_x := level.player.position.x
 	touch(13, level.hud.RIGHT.get_center(), true)
-	await steps(20)
+	await steps(12)
 	check(level.player.position.x > start_x + 10.0, "touch movement drives the player")
 	touch(14, level.hud.JUMP.get_center(), true)
 	await steps(3)
@@ -76,7 +82,7 @@ func _run() -> void:
 	key.physical_keycode = KEY_D
 	key.pressed = true
 	Input.parse_input_event(key)
-	await steps(20)
+	await steps(12)
 	check(level.player.position.x > keyboard_start + 10.0, "keyboard movement drives the player")
 	key.pressed = false
 	Input.parse_input_event(key)
@@ -117,7 +123,11 @@ func _run() -> void:
 	var danger: Rect2 = level.field.rectangles[3]
 	level.player.position = danger.get_center()
 	await steps(3)
-	check(level.hud.stars == 0 and not level.collected[0] and level.player.position.distance_to(DESIGN.PLAYER_START) < 4.0 and level.field.angle < 0.1, "hazard restores the initial attempt")
+	check(level.hud.stars == 0 and not level.collected[0] and level.player.position.distance_to(DESIGN.PLAYER_START) < 4.0 and level.field.angle < 0.1, "shadow hazard restores the initial attempt")
+	level.player.position = DESIGN.SPIKE_STARTS[0] + Vector2(9, 3)
+	level.player.velocity = Vector2.ZERO
+	await steps(3)
+	check(level.player.position.distance_to(DESIGN.PLAYER_START) < 4.0 and level.hud.stars == 0, "floor spikes restart the attempt")
 
 	for star in DESIGN.STAR_POSITIONS:
 		level.player.position = star

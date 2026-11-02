@@ -7,7 +7,10 @@ const SCALE := 78.0
 const LIGHT_SHEAR := 0.32
 const ROTATION_SPEED := 0.32
 const PLAYER_START := Vector2(90.0, 583.0)
-const STAR_POSITIONS := [Vector2(225.0, 470.0), Vector2(310.0, 380.0), Vector2(270.0, 290.0)]
+const STAR_POSITIONS := [Vector2(150.0, 470.0), Vector2(370.0, 380.0), Vector2(90.0, 230.0)]
+# Independent 2D hazards; the rotating projected objects remain unchanged.
+const SPIKE_STARTS := [Vector2(144.0, 582.0), Vector2(390.0, 582.0)]
+const PIXEL_SIZE := 3.0
 
 # The boxes are the single source for both the 3D diorama and 2D projection.
 # Height is measured above the surface of the disk.
@@ -34,4 +37,19 @@ static func projected_rect(piece: Dictionary, angle: float) -> Rect2:
 			left = minf(left, x)
 			right = maxf(right, x)
 	var top := project_point(center + Vector3(0.0, half.y, 0.0), angle).y
-	return Rect2(left, top, right - left, piece.size.y * SCALE)
+	var bottom: float = top + piece.size.y * SCALE
+	left = snappedf(left, PIXEL_SIZE)
+	right = snappedf(right, PIXEL_SIZE)
+	top = snappedf(top, PIXEL_SIZE)
+	bottom = snappedf(bottom, PIXEL_SIZE)
+	return Rect2(left, top, right - left, bottom - top)
+
+static func spike_strips() -> Array[Rect2]:
+	var strips: Array[Rect2] = []
+	for origin in SPIKE_STARTS:
+		for tooth in 3:
+			for row in 6:
+				var width := float(row + 1) * PIXEL_SIZE
+				var x: float = origin.x + tooth * 18.0 + floorf((18.0 - width) / 6.0) * PIXEL_SIZE
+				strips.append(Rect2(x, origin.y + row * PIXEL_SIZE, width, PIXEL_SIZE))
+	return strips

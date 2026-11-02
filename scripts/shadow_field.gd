@@ -2,8 +2,9 @@ class_name ShadowField
 extends Node2D
 
 const DESIGN = preload("res://scripts/level_design.gd")
-const PLATFORM_COLOR := Color(0.19, 0.23, 0.27, 0.9)
-const HAZARD_COLOR := Color(0.78, 0.23, 0.21, 0.9)
+const PIXEL = preload("res://scripts/pixel_art.gd")
+const PLATFORM_COLOR := Color("40364f")
+const HAZARD_COLOR := Color("b95650")
 
 var angle := 0.0
 var pieces: Array[Dictionary] = DESIGN.pieces()
@@ -11,6 +12,7 @@ var platform_bodies: Array[StaticBody2D] = []
 var platform_shapes: Array[RectangleShape2D] = []
 var platform_motion: Dictionary = {}
 var rectangles: Array[Rect2] = []
+var spike_strips: Array[Rect2] = DESIGN.spike_strips()
 var running := true
 
 func _ready() -> void:
@@ -84,6 +86,9 @@ func touches_hazard(player_rect: Rect2) -> bool:
 	for i in pieces.size():
 		if pieces[i].hazard and rectangles[i].intersects(player_rect):
 			return true
+	for strip in spike_strips:
+		if strip.intersects(player_rect):
+			return true
 	return false
 
 func _draw() -> void:
@@ -91,10 +96,16 @@ func _draw() -> void:
 		var rect := rectangles[i]
 		if pieces[i].hazard:
 			draw_rect(rect, HAZARD_COLOR)
-			var tooth_width := rect.size.x / 4.0
-			for tooth in 4:
-				var x := rect.position.x + tooth * tooth_width
-				draw_polyline(PackedVector2Array([Vector2(x, rect.position.y + 10.0), Vector2(x + tooth_width * 0.5, rect.position.y + 3.0), Vector2(x + tooth_width, rect.position.y + 10.0)]), Color(1.0, 0.82, 0.72, 0.8), 2.0)
+			# A striped warning remains entirely inside the hazardous projection.
+			for x in range(3, int(rect.size.x) - 3, 12):
+				draw_rect(Rect2(rect.position + Vector2(x, 3), Vector2(6, 3)), Color("f3d9bb"))
 		else:
 			draw_rect(rect, PLATFORM_COLOR)
-			draw_line(rect.position, rect.position + Vector2(rect.size.x, 0), Color(0.38, 0.43, 0.45), 2.0)
+			draw_rect(Rect2(rect.position, Vector2(rect.size.x, 3)), Color("6c6076"))
+			# Colour chips identify which 3D object produced this silhouette.
+			var chip: Color = pieces[i].color
+			draw_rect(Rect2(rect.position + Vector2(6, 6), Vector2(24, 6)), chip)
+	for strip in spike_strips:
+		draw_rect(strip, PIXEL.INK)
+		if strip.size.x >= 9.0:
+			draw_rect(Rect2(strip.position + Vector2(3, 0), Vector2(strip.size.x - 6, strip.size.y)), PIXEL.RED)
