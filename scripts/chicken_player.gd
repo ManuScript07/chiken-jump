@@ -11,6 +11,8 @@ const BODY_SIZE := Vector2(27.0, 34.0)
 var input_axis := 0.0
 var facing := 1
 var jump_pending := false
+var jump_buffer := 0.0
+var coyote_time := 0.0
 var enabled := true
 var support: Object
 var shadow_field: ShadowField
@@ -28,12 +30,15 @@ func _ready() -> void:
 func request_jump() -> void:
 	if enabled:
 		jump_pending = true
+		jump_buffer = 0.12
 
 func reset_to(start: Vector2) -> void:
 	position = start
 	velocity = Vector2.ZERO
 	support = null
 	jump_pending = false
+	jump_buffer = 0.0
+	coyote_time = 0.0
 	input_axis = 0.0
 	facing = 1
 	enabled = true
@@ -50,8 +55,12 @@ func _physics_process(delta: float) -> void:
 		facing = 1 if input_axis > 0 else -1
 	velocity.x = move_toward(velocity.x, input_axis * SPEED, ACCELERATION * delta)
 	velocity.y += GRAVITY * delta
-	if jump_pending and is_on_floor():
+	jump_buffer = maxf(0.0, jump_buffer - delta)
+	coyote_time = 0.08 if is_on_floor() else maxf(0.0, coyote_time - delta)
+	if jump_buffer > 0.0 and coyote_time > 0.0:
 		velocity.y = -JUMP_SPEED
+		jump_buffer = 0.0
+		coyote_time = 0.0
 	jump_pending = false
 	move_and_slide()
 	position.x = clampf(position.x, 33.0, 507.0)

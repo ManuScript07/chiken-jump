@@ -89,7 +89,7 @@ func _draw() -> void:
 	PIXEL.text(self, Vector2(30, 64), "ЗВЕЗДЫ %d/3" % stars, 2, PIXEL.INK)
 	PIXEL.border(self, RESTART, PIXEL.INK, PIXEL.CREAM, 4.0)
 	PIXEL.text(self, RESTART.position + Vector2(14, 16), "ЗАНОВО", 2, PIXEL.INK)
-	PIXEL.text(self, Vector2(30, 801), "ДИСК", 2, PIXEL.INK)
+	PIXEL.text(self, Vector2(30, 801), "ДИСК СОЗДАЕТ ТЕНИ", 2, PIXEL.INK)
 	_draw_arrow(LEFT, false, "left")
 	_draw_arrow(RIGHT, true, "right")
 	_draw_jump()

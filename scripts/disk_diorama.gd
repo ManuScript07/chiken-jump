@@ -35,7 +35,7 @@ func _ready() -> void:
 	world.add_child(light)
 	var camera := Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 6.3
+	camera.size = 5.7
 	camera.position = Vector3(7, 5.5, 9)
 	world.add_child(camera)
 	camera.look_at(Vector3(0, 1.0, 0), Vector3.UP)
@@ -53,9 +53,7 @@ func _ready() -> void:
 	rotor.add_child(disk)
 	for piece in DESIGN.pieces():
 		var box := MeshInstance3D.new()
-		var cube := BoxMesh.new()
-		cube.size = piece.size
-		box.mesh = cube
+		box.mesh = DESIGN.prism_mesh(piece)
 		box.position = piece.center
 		box.material_override = _material(piece.color)
 		rotor.add_child(box)
@@ -68,4 +66,5 @@ func _material(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = 0.85
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return material

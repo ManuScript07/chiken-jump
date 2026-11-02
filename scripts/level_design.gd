@@ -1,55 +1,62 @@
 class_name LevelDesign
 extends RefCounted
 
-# World coordinates are in metres; the shadow wall uses an orthographic light.
-const WALL_ORIGIN := Vector2(270.0, 600.0)
+const WALL_ORIGIN := Vector2(270, 600)
 const SCALE := 78.0
 const LIGHT_SHEAR := 0.32
-const ROTATION_SPEED := 0.32
-const PLAYER_START := Vector2(90.0, 583.0)
-const STAR_POSITIONS := [Vector2(150.0, 470.0), Vector2(370.0, 380.0), Vector2(90.0, 230.0)]
-# Independent 2D hazards; the rotating projected objects remain unchanged.
-const SPIKE_STARTS := [Vector2(144.0, 582.0), Vector2(390.0, 582.0)]
+const ROTATION_SPEED := 0.16
+const PLAYER_START := Vector2(70, 583)
+const STAR_POSITIONS := [Vector2(150, 500), Vector2(280, 465), Vector2(410, 420)]
 const PIXEL_SIZE := 3.0
 
-# The boxes are the single source for both the 3D diorama and 2D projection.
-# Height is measured above the surface of the disk.
+# Convex vertical profiles are extruded in depth. Both views consume these vertices.
 static func pieces() -> Array[Dictionary]:
 	return [
-		{"center": Vector3(-0.65, 0.95, -0.2), "size": Vector3(1.65, 0.30, 0.85), "color": Color(0.31, 0.63, 0.72), "hazard": false},
-		{"center": Vector3(0.55, 2.10, 0.15), "size": Vector3(1.55, 0.30, 0.9), "color": Color(0.91, 0.65, 0.34), "hazard": false},
-		{"center": Vector3(-0.2, 3.25, 0.5), "size": Vector3(1.5, 0.30, 0.85), "color": Color(0.56, 0.69, 0.46), "hazard": false},
-		{"center": Vector3(2.35, 0.23, 0.15), "size": Vector3(0.65, 0.46, 0.65), "color": Color(0.86, 0.29, 0.29), "hazard": true},
+		{"center": Vector3(-1.45,0,-0.2), "depth": 0.65, "profile": PackedVector2Array([Vector2(-0.4,0),Vector2(0.4,0),Vector2(0.4,0.55),Vector2(-0.4,0.55)]), "color": Color("73a8b7"), "hazard": false},
+		{"center": Vector3(-0.1,0,0.3), "depth": 0.55, "profile": PackedVector2Array([Vector2(-0.65,0),Vector2(0.65,0),Vector2(0.65,0.95)]), "color": Color("e6a04c"), "hazard": false},
+		{"center": Vector3(1.45,0,-0.2), "depth": 0.6, "profile": PackedVector2Array([Vector2(-0.45,0),Vector2(0.45,0),Vector2(0.45,1.35),Vector2(-0.45,1.05)]), "color": Color("8caf76"), "hazard": false},
+		{"center": Vector3(0.55,0,-1.65), "depth": 0.18, "profile": PackedVector2Array([Vector2(-0.22,0),Vector2(0.22,0),Vector2(0,0.38)]), "color": Color("b95650"), "hazard": true}
 	]
+
+static func vertices(piece: Dictionary) -> PackedVector3Array:
+	var result := PackedVector3Array()
+	for z in [-0.5, 0.5]:
+		for point: Vector2 in piece.profile:
+			result.append(piece.center + Vector3(point.x, point.y, z * float(piece.depth)))
+	return result
 
 static func project_point(point: Vector3, angle: float) -> Vector2:
 	var rotated := point.rotated(Vector3.UP, angle)
 	return WALL_ORIGIN + Vector2((rotated.x + LIGHT_SHEAR * rotated.z) * SCALE, -rotated.y * SCALE)
 
-static func projected_rect(piece: Dictionary, angle: float) -> Rect2:
-	var center: Vector3 = piece.center
-	var half: Vector3 = piece.size * 0.5
-	var left := INF
-	var right := -INF
-	for dx in [-1.0, 1.0]:
-		for dz in [-1.0, 1.0]:
-			var x := project_point(center + Vector3(dx * half.x, 0.0, dz * half.z), angle).x
-			left = minf(left, x)
-			right = maxf(right, x)
-	var top := project_point(center + Vector3(0.0, half.y, 0.0), angle).y
-	var bottom: float = top + piece.size.y * SCALE
-	left = snappedf(left, PIXEL_SIZE)
-	right = snappedf(right, PIXEL_SIZE)
-	top = snappedf(top, PIXEL_SIZE)
-	bottom = snappedf(bottom, PIXEL_SIZE)
-	return Rect2(left, top, right - left, bottom - top)
+static func projected_polygon(piece: Dictionary, angle: float) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for vertex in vertices(piece):
+		points.append(project_point(vertex, angle).snapped(Vector2.ONE * PIXEL_SIZE))
+	var hull := Geometry2D.convex_hull(points)
+	if hull.size() > 1 and hull[0] == hull[-1]:
+		hull.remove_at(hull.size() - 1)
+	return hull
 
-static func spike_strips() -> Array[Rect2]:
-	var strips: Array[Rect2] = []
-	for origin in SPIKE_STARTS:
-		for tooth in 3:
-			for row in 6:
-				var width := float(row + 1) * PIXEL_SIZE
-				var x: float = origin.x + tooth * 18.0 + floorf((18.0 - width) / 6.0) * PIXEL_SIZE
-				strips.append(Rect2(x, origin.y + row * PIXEL_SIZE, width, PIXEL_SIZE))
-	return strips
+static func projected_rect(piece: Dictionary, angle: float) -> Rect2:
+	var polygon := projected_polygon(piece, angle)
+	var rect := Rect2(polygon[0], Vector2.ZERO)
+	for point in polygon:
+		rect = rect.expand(point)
+	return rect
+
+static func prism_mesh(piece: Dictionary) -> ArrayMesh:
+	var points := vertices(piece)
+	var count: int = piece.profile.size()
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# Profiles are convex, so fan triangulation is sufficient for both end caps.
+	for i in range(1, count - 1):
+		for index in [0, i + 1, i, count, count + i, count + i + 1]:
+			surface.add_vertex(points[index] - piece.center)
+	for i in count:
+		var next := (i + 1) % count
+		for index in [i, next, next + count, i, next + count, i + count]:
+			surface.add_vertex(points[index] - piece.center)
+	surface.generate_normals()
+	return surface.commit()

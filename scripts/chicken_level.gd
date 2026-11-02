@@ -71,7 +71,7 @@ func _draw() -> void:
 	draw_rect(Rect2(17, 102, 514, 518), Color("528a69"))
 	PIXEL.border(self, Rect2(12, 96, 516, 516), PIXEL.INK, Color("d9e4d4"), 8.0)
 	draw_rect(Rect2(21, 105, 498, 495), Color("ebe9df"))
-	PIXEL.text(self, Vector2(36, 123), "ЖДИ ПОВОРОТА", 2, Color("6f8474"))
+	PIXEL.text(self, Vector2(36, 123), "ПРЫГАЙ ПО ТЕНЯМ", 2, Color("6f8474"))
 	# Stepped decorative skyline stays behind all playable silhouettes.
 	for x in range(26, 515, 36):
 		var h := 12 + int((x / 36) % 3) * 9
