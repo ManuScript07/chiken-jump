@@ -9,77 +9,65 @@ func _initialize() -> void:
 
 func check(value: bool, message: String) -> void:
 	if value:
-		print("PASS: ", message)
+		print("PASS: ",message)
 	else:
 		failures += 1
-		printerr("FAIL: ", message)
+		printerr("FAIL: ",message)
 
 func _run() -> void:
 	var level: ChickenLevel = load("res://scenes/main.tscn").instantiate()
 	root.add_child(level)
 	await process_frame
 	level.field.running = false
-	var camera := level.diorama.camera
-	var wall_top := camera.unproject_position(DESIGN.canvas_to_wall(Vector2(0, DESIGN.WALL_CROP_Y)))
-	var wall_bottom := camera.unproject_position(DESIGN.canvas_to_wall(Vector2(540, DESIGN.WALL_CROP_Y + DESIGN.WALL_TEXTURE_SIZE.y)))
-	var wall_rect := Rect2(wall_top, wall_bottom - wall_top)
-	var rotor := level.diorama.rotor
-	var disk: MeshInstance3D = rotor.get_child(0)
-	var disk_left := camera.unproject_position(disk.to_global(Vector3(-2.9, 0, 0)))
-	var disk_right := camera.unproject_position(disk.to_global(Vector3(2.9, 0, 0)))
-	var source := DESIGN.LIGHT_POSITION
+	var view := level.diorama
+	var camera := view.camera
+	var rotor := view.rotor
 	var world: Node3D = rotor.get_parent()
-	var projector: Node3D = world.get_node("Projector")
-	check(absf(source.x) > 2.0 and projector.global_position.distance_to(source) < 0.001, "visible projector is placed at the side light source")
-	check(DESIGN.project_world_point(rotor.global_position).distance_to(DESIGN.WALL_ORIGIN) < 0.001, "compact rig remains optically centered on the wall")
-	check(disk_left.distance_to(disk_right) < wall_rect.size.x * 0.3, "physical disk occupies less than a third of the wall width")
-	check(source.distance_to(rotor.global_position) < source.distance_to(DESIGN.canvas_to_wall(DESIGN.WALL_ORIGIN)) * 0.3, "rig is near the lens with room for a large shadow")
-	var aim := (DESIGN.canvas_to_wall(Vector2(270,450)) - source).normalized()
-	check((-projector.global_basis.z).dot(aim) > 0.9999, "projector body and lens aim toward the center of the canvas")
-
-	# This elevated wide slab represents a future overhanging construction.
-	# It is only a test fixture; the shipped level remains unchanged.
-	var overhang := {"center":Vector3(0,4.3,0), "depth":0.7, "profile":PackedVector2Array([Vector2(-2.7,0),Vector2(2.7,0),Vector2(2.7,0.5),Vector2(-2.7,0.5)])}
-	var ceiling := MeshInstance3D.new()
-	ceiling.mesh = DESIGN.prism_mesh(overhang)
-	ceiling.position = overhang.center
-	rotor.add_child(ceiling)
-	var physical_rays_ok := true
-	var silhouettes_ok := true
+	check(camera.projection == Camera3D.PROJECTION_PERSPECTIVE,"room uses a perspective camera")
+	check(world.get_node_or_null("Projector") == null and world.get_node_or_null("Beam") == null,"no projector body or light-cone mesh appears in the room")
+	check(view.key_light.global_position.distance_to(DESIGN.LIGHT_POSITION)<0.001 and view.key_light.shadow_enabled,"the physical light uses the collision projection origin")
+	check(view.wall_viewport.transparent_bg and not level.field.visible,"wall markings are transparent and playable polygons are not painted over real shadows")
+	var floor_top := view.room_floor.position.y + (view.room_floor.mesh as BoxMesh).size.y / 2.0
+	var wall_bottom := view.room_wall.position.y - (view.room_wall.mesh as BoxMesh).size.y / 2.0
+	check(absf(floor_top-wall_bottom)<0.001,"wall and floor meet without a gap or frame")
+	check(absf(rotor.global_position.y-DESIGN.DISK_HEIGHT*DESIGN.MODEL_SCALE-floor_top)<0.001,"turntable rests directly on the floor")
+	var left := camera.unproject_position(DESIGN.RIG_CENTER+Vector3.LEFT*DESIGN.DISK_RADIUS*DESIGN.MODEL_SCALE)
+	var right := camera.unproject_position(DESIGN.RIG_CENTER+Vector3.RIGHT*DESIGN.DISK_RADIUS*DESIGN.MODEL_SCALE)
+	check(right.distance_to(left)>180 and right.distance_to(left)<260,"turntable has the requested visible scale")
+	var geometry_ok := true
 	var clearance := INF
 	for phase in 72:
-		var angle := TAU * float(phase) / 72.0
-		level.field.angle = angle
+		level.field.angle = TAU * float(phase) / 72.0
 		level.field.update_projection(true)
-		for i in DESIGN.pieces().size():
-			var object: MeshInstance3D = rotor.get_child(i + 1)
-			var mesh_points: PackedVector3Array = object.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		for i in view.piece_nodes.size():
+			var object := view.piece_nodes[i]
+			var points: PackedVector3Array = object.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 			var projected := PackedVector2Array()
-			for point in mesh_points:
-				var world_point := object.to_global(point)
-				# Intersect rays from the rendered mesh, independently of model_to_world.
-				var ray := world_point - source
-				var hit := source + ray * ((DESIGN.WALL_Z - source.z) / ray.z)
-				var canvas_point := DESIGN.wall_to_canvas(hit)
-				projected.append(canvas_point.snapped(Vector2.ONE * DESIGN.PROJECTION_STEP))
-				physical_rays_ok = physical_rays_ok and (DESIGN.canvas_to_wall(DESIGN.project_world_point(world_point)) - source).cross(ray.normalized()).length() < 0.001
-				clearance = minf(clearance, camera.unproject_position(world_point).y - wall_rect.end.y)
+			for point in points:
+				var physical := object.to_global(point)
+				var ray := physical - DESIGN.LIGHT_POSITION
+				var hit := DESIGN.LIGHT_POSITION + ray * ((DESIGN.WALL_Z - DESIGN.LIGHT_POSITION.z) / ray.z)
+				projected.append(DESIGN.wall_to_canvas(hit).snapped(Vector2.ONE*DESIGN.PROJECTION_STEP))
+				var seam := camera.unproject_position(Vector3(physical.x,DESIGN.FLOOR_Y,DESIGN.WALL_Z))
+				clearance = minf(clearance,camera.unproject_position(physical).y-seam.y)
 			var hull := Geometry2D.convex_hull(projected)
-			if hull.size() > 1 and hull[0] == hull[-1]:
-				hull.remove_at(hull.size() - 1)
-			var visible: PackedVector2Array = level.field.polygons[i]
-			silhouettes_ok = silhouettes_ok and visible.size() == hull.size()
+			if hull.size()>1 and hull[0]==hull[-1]:
+				hull.remove_at(hull.size()-1)
+			var collider: PackedVector2Array = level.field.polygons[i]
+			geometry_ok = geometry_ok and hull.size()==collider.size()
 			for point in hull:
 				var found := false
-				for actual in visible:
-					found = found or point.distance_to(actual) < 0.001
-				silhouettes_ok = silhouettes_ok and found
-		var ceiling_points: PackedVector3Array = ceiling.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
-		for point in ceiling_points:
-			clearance = minf(clearance, camera.unproject_position(ceiling.to_global(point)).y - wall_rect.end.y)
-	check(physical_rays_ok and silhouettes_ok, "rendered meshes cast exactly the playable silhouettes through a full turn")
-	check(clearance > 24.0, "tall overhang and all figures stay below the canvas throughout rotation")
-	print("Minimum clearance from canvas: ", snappedf(clearance,0.1), " px")
-	ceiling.queue_free()
-	print("RESULT: ", failures, " failures")
-	quit(0 if failures == 0 else 1)
+				for actual in collider:
+					found = found or point.distance_to(actual)<0.001
+				geometry_ok = geometry_ok and found
+	check(geometry_ok,"every rendered primitive projects to its collider through a full rotation")
+	check(clearance>12.0,"specified objects do not cover the playable wall throughout rotation")
+	print("Minimum physical clearance below wall: ",snappedf(clearance,0.1)," px")
+	level.field.angle = 0.0
+	level.field.update_projection(true)
+	var gap_open := true
+	for polygon in level.field.polygons:
+		gap_open = gap_open and not Geometry2D.is_point_in_polygon(Vector2(180,550),polygon)
+	check(gap_open,"gap beneath the wooden overhang remains open")
+	print("RESULT: ",failures," failures")
+	quit(0 if failures==0 else 1)

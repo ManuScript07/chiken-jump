@@ -47,7 +47,7 @@ func _run() -> void:
 	for frame in 72:
 		level.field.angle = TAU * frame / 72.0
 		level.field.update_projection(true)
-		for i in 3:
+		for i in level.field.platform_shapes.size():
 			var shape := level.field.platform_shapes[i]
 			var body := level.field.platform_bodies[i]
 			for j in shape.polygon.size():
@@ -79,18 +79,29 @@ func _run() -> void:
 	var screen: Array[Vector2] = []
 	for corner: Vector3 in corners:
 		screen.append(cam.unproject_position(corner))
-	check(absf(screen[0].y-screen[1].y)<0.01 and absf(screen[2].y-screen[3].y)<0.01 and absf(screen[0].x-screen[3].x)<0.01 and absf(screen[1].x-screen[2].x)<0.01, "wall projects to a straight rectangle")
+	check(absf(screen[0].y-screen[1].y)<20.0 and absf(screen[2].y-screen[3].y)<20.0 and absf(screen[0].x-screen[3].x)<40.0 and absf(screen[1].x-screen[2].x)<40.0, "wall perspective remains gentle and readable")
 	var hud_source := FileAccess.get_file_as_string("res://scripts/game_hud.gd")
 	check(not hud_source.contains("draw_string"), "game interface uses icons without text")
 	level.restart()
-	var hazard: PackedVector2Array = level.field.polygons[3]
+	# The reference installation has no dangerous object; inject a physical test fixture.
+	var hazard_piece := {"id":"test_hazard", "primitive":"box", "center":Vector3(0,0.35,1.0), "size":Vector3(0.3,0.7,0.3), "color":Color.RED, "hazard":true}
+	var hazard_mesh := MeshInstance3D.new()
+	hazard_mesh.mesh = DESIGN.primitive_mesh(hazard_piece)
+	hazard_mesh.position = hazard_piece.center
+	level.diorama.rotor.add_child(hazard_mesh)
+	level.field.pieces.append(hazard_piece)
+	level.field.update_projection(true)
+	var hazard: PackedVector2Array = level.field.polygons.back()
 	var center := Vector2.ZERO
 	for point in hazard:
 		center += point
 	center /= hazard.size()
 	level.player.position = center
 	await steps(3)
-	check(level.player.position.distance_to(DESIGN.PLAYER_START) < 4, "projected triangular hazard restarts attempt")
+	check(level.player.position.distance_to(DESIGN.PLAYER_START) < 4, "projected physical hazard restarts attempt")
+	level.field.pieces.pop_back()
+	level.field.update_projection(true)
+	hazard_mesh.queue_free()
 	for star in DESIGN.STAR_POSITIONS:
 		level.player.position = star
 		level.player.velocity = Vector2.ZERO

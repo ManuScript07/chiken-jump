@@ -4,9 +4,12 @@ extends RefCounted
 const WALL_ORIGIN := Vector2(270, 600)
 const SCALE := 64.0
 const WALL_Z := -4.0
-const LIGHT_POSITION := Vector3(3.0, 0.0, 8.0)
-const MODEL_SCALE := 0.36
-const SHADOW_MAGNIFICATION := 13.0 / 9.0
+const LIGHT_POSITION := Vector3(1.4, 0.0, 7.0)
+const MODEL_SCALE := 0.46
+const SHADOW_MAGNIFICATION := 1.5
+const DISK_RADIUS := 2.65
+const DISK_HEIGHT := 0.24
+const FLOOR_Y := -DISK_HEIGHT * MODEL_SCALE
 # Place the compact rig on the ray to the middle of the wall baseline.
 # This balances the smaller objects with a larger optical magnification.
 const RIG_RAY_FRACTION := MODEL_SCALE / SHADOW_MAGNIFICATION
@@ -14,25 +17,23 @@ const RIG_CENTER := LIGHT_POSITION + (Vector3(0.0, 0.0, WALL_Z) - LIGHT_POSITION
 const WALL_CROP_Y := 280.0
 const WALL_TEXTURE_SIZE := Vector2i(540, 340)
 const ROTATION_SPEED := 0.16
-const PLAYER_START := Vector2(70, 585)
+const PLAYER_START := Vector2(44, 585)
 const STAR_POSITIONS := [Vector2(150, 500), Vector2(280, 465), Vector2(410, 420)]
 const PROJECTION_STEP := 0.25 # Subpixel precision on the projected wall.
 
-# Convex vertical profiles are extruded in depth. Both views consume these vertices.
+# Each convex primitive keeps its own shadow, preserving gaps under overhangs.
 static func pieces() -> Array[Dictionary]:
 	return [
-		{"center": Vector3(-1.45,0,-0.2), "depth": 0.65, "profile": PackedVector2Array([Vector2(-0.4,0),Vector2(0.4,0),Vector2(0.4,0.55),Vector2(-0.4,0.55)]), "color": Color("73a8b7"), "hazard": false},
-		{"center": Vector3(-0.1,0,0.3), "depth": 0.55, "profile": PackedVector2Array([Vector2(-0.65,0),Vector2(0.65,0),Vector2(0.65,0.95)]), "color": Color("e6a04c"), "hazard": false},
-		{"center": Vector3(1.45,0,-0.2), "depth": 0.6, "profile": PackedVector2Array([Vector2(-0.45,0),Vector2(0.45,0),Vector2(0.45,1.35),Vector2(-0.45,1.05)]), "color": Color("8caf76"), "hazard": false},
-		{"center": Vector3(0.55,0,-1.65), "depth": 0.18, "profile": PackedVector2Array([Vector2(-0.22,0),Vector2(0.22,0),Vector2(0,0.38)]), "color": Color("b95650"), "hazard": true}
+		{"id":"beige_cube", "primitive":"box", "center":Vector3(-1.55,0.32,0.25), "size":Vector3(0.64,0.64,0.64), "color":Color("e6d1a3"), "hazard":false},
+		{"id":"red_support", "primitive":"box", "center":Vector3(0,0.4,0), "size":Vector3(0.72,0.8,0.72), "color":Color("d82936"), "hazard":false},
+		{"id":"red_crossbar", "primitive":"box", "center":Vector3(0,0.94,0), "size":Vector3(1.38,0.28,0.64), "color":Color("e63340"), "hazard":false},
+		{"id":"wooden_stick", "primitive":"box", "center":Vector3(0,1.125,0), "size":Vector3(4.55,0.09,0.12), "color":Color("e6cc87"), "hazard":false},
+		{"id":"blue_tower", "primitive":"box", "center":Vector3(1.45,0.8,-0.1), "size":Vector3(0.66,1.6,0.66), "color":Color("147bc4"), "hazard":false},
+		{"id":"rounded_roof", "primitive":"half_cylinder", "center":Vector3(1.45,1.6,-0.1), "radius":0.33, "depth":0.66, "color":Color("dfb778"), "hazard":false}
 	]
 
 static func vertices(piece: Dictionary) -> PackedVector3Array:
-	var result := PackedVector3Array()
-	for z in [-0.5, 0.5]:
-		for point: Vector2 in piece.profile:
-			result.append(piece.center + Vector3(point.x, point.y, z * float(piece.depth)))
-	return result
+	return PrimitiveGeometry.vertices(piece)
 
 static func model_to_world(point: Vector3, angle: float) -> Vector3:
 	return RIG_CENTER + point.rotated(Vector3.UP, angle) * MODEL_SCALE
@@ -60,21 +61,8 @@ static func projected_rect(piece: Dictionary, angle: float) -> Rect2:
 		rect = rect.expand(point)
 	return rect
 
-static func prism_mesh(piece: Dictionary) -> ArrayMesh:
-	var points := vertices(piece)
-	var count: int = piece.profile.size()
-	var surface := SurfaceTool.new()
-	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	# Profiles are convex, so fan triangulation is sufficient for both end caps.
-	for i in range(1, count - 1):
-		for index in [0, i + 1, i, count, count + i, count + i + 1]:
-			surface.add_vertex(points[index] - piece.center)
-	for i in count:
-		var next := (i + 1) % count
-		for index in [i, next, next + count, i, next + count, i + count]:
-			surface.add_vertex(points[index] - piece.center)
-	surface.generate_normals()
-	return surface.commit()
+static func primitive_mesh(piece: Dictionary) -> ArrayMesh:
+	return PrimitiveGeometry.mesh(piece)
 
 static func wall_to_canvas(point: Vector3) -> Vector2:
 	return WALL_ORIGIN + Vector2(point.x, -point.y) * SCALE
