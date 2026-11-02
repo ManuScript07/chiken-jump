@@ -1,7 +1,6 @@
 class_name ChickenPlayer
 extends CharacterBody2D
 
-const PIXEL = preload("res://scripts/pixel_art.gd")
 const SPEED := 190.0
 const ACCELERATION := 1500.0
 const GRAVITY := 1500.0
@@ -74,15 +73,12 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	# The 9x11 sprite fits the 27x34 collision body, including the beak and feet.
-	var rows: Array[String] = [
-		"..R.R....", "..RRRR...", "..KKKK...", ".KWWWWK..", "KWWWKWKO.",
-		"KWWWWWWOO", "KWWYYWWK.", "KWWYYWWK.", ".KWWWWK..", "..KKKK...", "..O..O..."
-	]
-	if facing < 0:
-		for i in rows.size():
-			rows[i] = rows[i].reverse()
-	PIXEL.sprite(self, Vector2(-13.5, -16), rows, {
-		"K": PIXEL.INK, "W": Color("fff5d9"), "Y": Color("ded2b5"),
-		"R": PIXEL.RED, "O": Color("e9a443")
-	}, 3)
+	var direction := float(facing)
+	draw_circle(Vector2(0,1),12.5,Color("fff2cc"))
+	draw_circle(Vector2(direction * 3,-7),8,Color("fff6dd"))
+	draw_circle(Vector2(direction * 6,-9),1.7,Color("262b36"))
+	draw_colored_polygon(PackedVector2Array([Vector2(direction*9,-5),Vector2(direction*13,-2),Vector2(direction*9,0)]),Color("e7a33f"))
+	draw_circle(Vector2(0,-15),2.5,Color("c44f48"))
+	draw_circle(Vector2(4*direction,-15),2.5,Color("c44f48"))
+	draw_line(Vector2(-4,12),Vector2(-4,17),Color("c38a3e"),2.0,true)
+	draw_line(Vector2(4,12),Vector2(4,17),Color("c38a3e"),2.0,true)

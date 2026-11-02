@@ -2,7 +2,6 @@ class_name ChickenLevel
 extends Node2D
 
 const DESIGN = preload("res://scripts/level_design.gd")
-const PIXEL = preload("res://scripts/pixel_art.gd")
 
 @onready var field: ShadowField = $ShadowField
 @onready var player: ChickenPlayer = $Player
@@ -14,6 +13,8 @@ var completed := false
 
 func _ready() -> void:
 	player.shadow_field = field
+	diorama.mount_gameplay(field, player, self)
+	field.projection_changed.connect(diorama.set_angle)
 	hud.jump_pressed.connect(player.request_jump)
 	hud.restart_pressed.connect(restart)
 	restart()
@@ -24,6 +25,7 @@ func restart() -> void:
 	field.reset()
 	player.reset_to(DESIGN.PLAYER_START)
 	hud.reset()
+	diorama.projection_canvas.queue_redraw()
 	diorama.set_angle(field.angle)
 	queue_redraw()
 
@@ -50,6 +52,7 @@ func _physics_process(_delta: float) -> void:
 			hud.stars += 1
 			hud.queue_redraw()
 			queue_redraw()
+			diorama.projection_canvas.queue_redraw()
 			if hud.stars == DESIGN.STAR_POSITIONS.size():
 				_finish()
 				return
@@ -62,31 +65,4 @@ func _finish() -> void:
 	hud.queue_redraw()
 
 func _draw() -> void:
-	# The checkerboard and heavy bezel evoke a handheld console.
-	draw_rect(Rect2(0, 0, 540, 960), PIXEL.GREEN)
-	for y in range(0, 960, 24):
-		for x in range(0, 540, 24):
-			if (x / 24 + y / 24) % 2 == 0:
-				draw_rect(Rect2(x, y, 24, 24), Color("78b68a"))
-	draw_rect(Rect2(17, 102, 514, 518), Color("528a69"))
-	PIXEL.border(self, Rect2(12, 96, 516, 516), PIXEL.INK, Color("d9e4d4"), 8.0)
-	draw_rect(Rect2(21, 105, 498, 495), Color("ebe9df"))
-	PIXEL.text(self, Vector2(36, 123), "ПРЫГАЙ ПО ТЕНЯМ", 2, Color("6f8474"))
-	# Stepped decorative skyline stays behind all playable silhouettes.
-	for x in range(26, 515, 36):
-		var h := 12 + int((x / 36) % 3) * 9
-		draw_rect(Rect2(x, 600 - h, 12, h), Color("d4ded0"))
-	draw_rect(Rect2(20, 600, 500, 12), PIXEL.INK)
-	draw_rect(Rect2(20, 600, 500, 3), Color("74977b"))
-	# The 3D viewport and its content are deliberately left untouched.
-	draw_rect(Rect2(25, 620, 490, 180), PIXEL.INK)
-	for i in DESIGN.STAR_POSITIONS.size():
-		if not collected[i]:
-			_draw_star(DESIGN.STAR_POSITIONS[i])
-
-func _draw_star(center: Vector2) -> void:
-	var rows: Array[String] = [
-		"...KKK...", "...KGK...", "KKKKGKKKK", "KGGGGGGGK", "KGGGGGGGK",
-		".KGGGGGK.", "..KGGGK..", ".KGGKGGK.", "KKK...KKK"
-	]
-	PIXEL.sprite(self, center - Vector2(13, 13), rows, {"K": PIXEL.INK, "G": PIXEL.GOLD}, 3)
+	draw_rect(Rect2(0, 0, 540, 960), Color("141824"))

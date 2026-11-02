@@ -1,8 +1,9 @@
 class_name ShadowField
 extends Node2D
 
+signal projection_changed(angle: float)
+
 const DESIGN = preload("res://scripts/level_design.gd")
-const PIXEL = preload("res://scripts/pixel_art.gd")
 const PLATFORM_COLOR := Color("40364f")
 const HAZARD_COLOR := Color("b95650")
 
@@ -78,6 +79,7 @@ func update_projection(reset_motion: bool) -> void:
 		platform_shapes[platform_index].polygon = local
 		platform_index += 1
 	queue_redraw()
+	projection_changed.emit(angle)
 
 func motion_for(body: Object) -> Vector2:
 	if body == null:

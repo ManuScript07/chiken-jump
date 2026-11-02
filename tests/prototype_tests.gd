@@ -26,6 +26,20 @@ func _run() -> void:
 	await process_frame
 	await steps(5)
 	check(level.player.is_on_floor(), "safe grounded start")
+	check(level.player.get_world_2d() == level.diorama.wall_viewport.world_2d and level.field.get_world_2d() == level.player.get_world_2d(), "wall character and colliders share the projection viewport")
+	var rays_ok := true
+	for phase in 24:
+		for piece in DESIGN.pieces():
+			for vertex in DESIGN.vertices(piece):
+				var angle := float(phase) * TAU / 24.0
+				var object_point: Vector3 = vertex.rotated(Vector3.UP, angle)
+				var wall_point: Vector3 = DESIGN.canvas_to_wall(DESIGN.project_point(vertex, angle))
+				var ray: Vector3 = (object_point - DESIGN.LIGHT_POSITION).normalized()
+				rays_ok = rays_ok and (wall_point - DESIGN.LIGHT_POSITION).cross(ray).length() < 0.001
+	check(rays_ok, "all model vertices project along rays from the visible lens")
+	var close_size: float = DESIGN.project_point(Vector3(1,1,1),0).distance_to(DESIGN.WALL_ORIGIN)
+	var far_size: float = DESIGN.project_point(Vector3(1,1,-1),0).distance_to(DESIGN.WALL_ORIGIN)
+	check(close_size > far_size, "moving toward the projector enlarges the shadow")
 	var geometry_ok := true
 	level.field.running = false
 	for frame in 72:

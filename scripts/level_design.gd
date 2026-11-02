@@ -2,12 +2,15 @@ class_name LevelDesign
 extends RefCounted
 
 const WALL_ORIGIN := Vector2(270, 600)
-const SCALE := 78.0
-const LIGHT_SHEAR := 0.32
+const SCALE := 64.0
+const LIGHT_POSITION := Vector3(0, 0, 9)
+const WALL_Z := -4.0
+const WALL_CROP_Y := 280.0
+const WALL_TEXTURE_SIZE := Vector2i(540, 340)
 const ROTATION_SPEED := 0.16
 const PLAYER_START := Vector2(70, 583)
 const STAR_POSITIONS := [Vector2(150, 500), Vector2(280, 465), Vector2(410, 420)]
-const PIXEL_SIZE := 3.0
+const PROJECTION_STEP := 0.25 # Subpixel precision on the projected wall.
 
 # Convex vertical profiles are extruded in depth. Both views consume these vertices.
 static func pieces() -> Array[Dictionary]:
@@ -27,12 +30,14 @@ static func vertices(piece: Dictionary) -> PackedVector3Array:
 
 static func project_point(point: Vector3, angle: float) -> Vector2:
 	var rotated := point.rotated(Vector3.UP, angle)
-	return WALL_ORIGIN + Vector2((rotated.x + LIGHT_SHEAR * rotated.z) * SCALE, -rotated.y * SCALE)
+	var distance := (WALL_Z - LIGHT_POSITION.z) / (rotated.z - LIGHT_POSITION.z)
+	var hit := LIGHT_POSITION + (rotated - LIGHT_POSITION) * distance
+	return wall_to_canvas(hit)
 
 static func projected_polygon(piece: Dictionary, angle: float) -> PackedVector2Array:
 	var points := PackedVector2Array()
 	for vertex in vertices(piece):
-		points.append(project_point(vertex, angle).snapped(Vector2.ONE * PIXEL_SIZE))
+		points.append(project_point(vertex, angle).snapped(Vector2.ONE * PROJECTION_STEP))
 	var hull := Geometry2D.convex_hull(points)
 	if hull.size() > 1 and hull[0] == hull[-1]:
 		hull.remove_at(hull.size() - 1)
@@ -60,3 +65,9 @@ static func prism_mesh(piece: Dictionary) -> ArrayMesh:
 			surface.add_vertex(points[index] - piece.center)
 	surface.generate_normals()
 	return surface.commit()
+
+static func wall_to_canvas(point: Vector3) -> Vector2:
+	return WALL_ORIGIN + Vector2(point.x, -point.y) * SCALE
+
+static func canvas_to_wall(point: Vector2) -> Vector3:
+	return Vector3((point.x - WALL_ORIGIN.x) / SCALE, (WALL_ORIGIN.y - point.y) / SCALE, WALL_Z)
