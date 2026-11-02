@@ -49,9 +49,9 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.size = 15.5
-	camera.position = Vector3(3.5,9,18)
+	camera.position = Vector3(0,9,18)
 	world.add_child(camera)
-	camera.look_at(Vector3(0.8,1.2,0.5), Vector3.UP)
+	camera.look_at(Vector3(0,1.2,0.5), Vector3.UP)
 	camera.current = true
 	_add_box(world, Vector3(0,-0.75,2), Vector3(15,0.4,19), Color("343c48"))
 	var center := DESIGN.canvas_to_wall(Vector2(270, DESIGN.WALL_CROP_Y + DESIGN.WALL_TEXTURE_SIZE.y / 2.0))
@@ -66,12 +66,16 @@ func _ready() -> void:
 	surface.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
 	wall.material_override = surface
 	world.add_child(wall)
-	_add_box(world, center + Vector3(0,0,-0.08), Vector3(quad.size.x + 0.18,quad.size.y + 0.18,0.12), Color("665c53"))
+	var frame := _add_box(world, center + Vector3(0,0,-0.08), Vector3(quad.size.x + 0.18,quad.size.y + 0.18,0.12), Color("665c53"))
+	frame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	rotor = Node3D.new()
+	rotor.position = DESIGN.RIG_CENTER
+	rotor.scale = Vector3.ONE * DESIGN.MODEL_SCALE
 	world.add_child(rotor)
 	var disk := _add_cylinder(rotor,Vector3(0,-0.12,0),2.9,0.24,Color("a87950"))
 	disk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_add_cylinder(world,Vector3(0,-0.38,0),0.9,0.28,Color("222732"))
+	var pedestal_height := 0.55 - 0.24 * DESIGN.MODEL_SCALE
+	_add_cylinder(world,DESIGN.RIG_CENTER + Vector3(0,-0.55 + pedestal_height / 2.0,0),0.9 * DESIGN.MODEL_SCALE,pedestal_height,Color("222732"))
 	for piece in DESIGN.pieces():
 		var object := MeshInstance3D.new()
 		object.mesh = DESIGN.prism_mesh(piece)
@@ -80,7 +84,7 @@ func _ready() -> void:
 		rotor.add_child(object)
 	_build_projector(world)
 
-func mount_gameplay(field: ShadowField, player: ChickenPlayer, level: ChickenLevel) -> void:
+func mount_gameplay(field: ShadowField, player: SquarePlayer, level: ChickenLevel) -> void:
 	projection_canvas.level = level
 	field.reparent(projection_canvas, false)
 	player.reparent(projection_canvas, false)
@@ -92,9 +96,15 @@ func set_angle(value: float) -> void:
 
 func _build_projector(world: Node3D) -> void:
 	var source: Vector3 = DESIGN.LIGHT_POSITION
-	_add_box(world,source + Vector3(0,-0.12,0.38),Vector3(0.95,0.32,0.8),Color("272c35"))
-	_add_box(world,source + Vector3(0,-0.37,0.35),Vector3(0.65,0.24,0.5),Color("181e28"))
-	var lens := _add_cylinder(world,source,0.18,0.12,Color("f6df9c"))
+	var projector := Node3D.new()
+	projector.name = "Projector"
+	projector.position = source
+	world.add_child(projector)
+	projector.look_at(DESIGN.canvas_to_wall(Vector2(270,450)),Vector3.UP)
+	_add_box(projector,Vector3(0,-0.12,0.38),Vector3(0.95,0.32,0.8),Color("272c35"))
+	_add_box(projector,Vector3(0,-0.37,0.35),Vector3(0.65,0.24,0.5),Color("181e28"))
+	_add_box(world,source + Vector3(0,-0.46,0.4),Vector3(0.65,0.18,0.65),Color("181e28"))
+	var lens := _add_cylinder(projector,Vector3.ZERO,0.18,0.12,Color("f6df9c"))
 	lens.rotation.x = PI / 2
 	var glow := _material(Color("ffe7a6"))
 	glow.emission_enabled = true

@@ -1,12 +1,13 @@
-class_name ChickenPlayer
+class_name SquarePlayer
 extends CharacterBody2D
 
-const SPEED := 190.0
-const ACCELERATION := 1500.0
-const GRAVITY := 1500.0
-const JUMP_SPEED := 610.0
-const BODY_SIZE := Vector2(27.0, 34.0)
+const SPEED := 230.0
+const ACCELERATION := 1900.0
+const GRAVITY := 1900.0
+const JUMP_SPEED := 685.0
+const BODY_SIZE := Vector2(30.0, 30.0)
 
+var avatar: SquareAvatar
 var input_axis := 0.0
 var facing := 1
 var jump_pending := false
@@ -25,6 +26,8 @@ func _ready() -> void:
 	shape.size = BODY_SIZE
 	shape_node.shape = shape
 	add_child(shape_node)
+	avatar = SquareAvatar.new()
+	add_child(avatar)
 
 func request_jump() -> void:
 	if enabled:
@@ -32,6 +35,10 @@ func request_jump() -> void:
 		jump_buffer = 0.12
 
 func reset_to(start: Vector2) -> void:
+	# CollisionPolygon2D rebuilds its shapes at the end of the frame.
+	# Resume movement after that rebuild, so restart never queries stale geometry.
+	set_physics_process(false)
+	set_physics_process.call_deferred(true)
 	position = start
 	velocity = Vector2.ZERO
 	support = null
@@ -41,6 +48,8 @@ func reset_to(start: Vector2) -> void:
 	input_axis = 0.0
 	facing = 1
 	enabled = true
+	if avatar != null:
+		avatar.reset_pose()
 
 func bounds() -> Rect2:
 	return Rect2(position - BODY_SIZE * 0.5, BODY_SIZE)
@@ -70,15 +79,4 @@ func _physics_process(delta: float) -> void:
 			if collision.get_normal().y < -0.7:
 				support = collision.get_collider()
 				break
-	queue_redraw()
-
-func _draw() -> void:
-	var direction := float(facing)
-	draw_circle(Vector2(0,1),12.5,Color("fff2cc"))
-	draw_circle(Vector2(direction * 3,-7),8,Color("fff6dd"))
-	draw_circle(Vector2(direction * 6,-9),1.7,Color("262b36"))
-	draw_colored_polygon(PackedVector2Array([Vector2(direction*9,-5),Vector2(direction*13,-2),Vector2(direction*9,0)]),Color("e7a33f"))
-	draw_circle(Vector2(0,-15),2.5,Color("c44f48"))
-	draw_circle(Vector2(4*direction,-15),2.5,Color("c44f48"))
-	draw_line(Vector2(-4,12),Vector2(-4,17),Color("c38a3e"),2.0,true)
-	draw_line(Vector2(4,12),Vector2(4,17),Color("c38a3e"),2.0,true)
+	avatar.update_pose(delta, is_on_floor(), facing, velocity.length_squared() > 100.0)

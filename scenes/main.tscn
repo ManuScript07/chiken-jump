@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://vsnpvqm48rgc" path="res://scripts/chicken_level.gd" id="1_tbgi4"]
 [ext_resource type="Script" uid="uid://wbbbbtakhe54" path="res://scripts/shadow_field.gd" id="2_tefeu"]
-[ext_resource type="Script" uid="uid://dfgehfpd5jk" path="res://scripts/chicken_player.gd" id="3_o6xl0"]
+[ext_resource type="Script" uid="uid://d3gkoie2v0wbr" path="res://scripts/square_player.gd" id="3_tbgi4"]
 [ext_resource type="Script" uid="uid://wbyaaed3l0e5" path="res://scripts/disk_diorama.gd" id="4_tipki"]
 [ext_resource type="Script" uid="uid://blr1ok1mouk33" path="res://scripts/game_hud.gd" id="5_85g3d"]
 
@@ -13,7 +13,7 @@ script = ExtResource("1_tbgi4")
 script = ExtResource("2_tefeu")
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=802001493]
-script = ExtResource("3_o6xl0")
+script = ExtResource("3_tbgi4")
 
 [node name="Diorama" type="Control" parent="." unique_id=1780244553]
 layout_mode = 3

@@ -4,7 +4,7 @@ extends Node2D
 const DESIGN = preload("res://scripts/level_design.gd")
 
 @onready var field: ShadowField = $ShadowField
-@onready var player: ChickenPlayer = $Player
+@onready var player: SquarePlayer = $Player
 @onready var diorama: DiskDiorama = $Diorama
 @onready var hud: GameHud = $HUD
 
