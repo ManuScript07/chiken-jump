@@ -4,8 +4,8 @@ extends RefCounted
 const WALL_ORIGIN := Vector2(270, 600)
 const SCALE := 64.0
 const WALL_Z := -4.0
-const LIGHT_POSITION := Vector3(1.0, 0.0, 8.0)
-const MODEL_SCALE := 0.46
+const LIGHT_POSITION := Vector3(1.0, 0.0, 11.0)
+const MODEL_SCALE := 0.4
 const SHADOW_MAGNIFICATION := 1.42
 const DISK_RADIUS := 2.8
 const DISK_HEIGHT := 0.24

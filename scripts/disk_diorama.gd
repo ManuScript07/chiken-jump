@@ -10,6 +10,9 @@ var key_light: SpotLight3D
 var room_wall: MeshInstance3D
 var room_floor: MeshInstance3D
 var piece_nodes: Array[MeshInstance3D] = []
+var floor_reflection: PlanarReflection
+var disk_reflection: PlanarReflection
+var disk_surface: MeshInstance3D
 
 func _ready() -> void:
 	position = Vector2.ZERO
@@ -46,6 +49,7 @@ func _ready() -> void:
 	_build_room(world)
 	_build_installation(world)
 	_build_lighting(world)
+	_build_reflections()
 
 func _build_environment(world: Node3D) -> void:
 	var environment := WorldEnvironment.new()
@@ -54,7 +58,11 @@ func _build_environment(world: Node3D) -> void:
 	env.background_color = Color("252333")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("455fae")
-	env.ambient_light_energy = 0.5
+	env.ambient_light_energy = 0.28
+	env.ssao_enabled = true
+	env.ssao_radius = 0.35
+	env.ssao_intensity = 1.1
+	env.ssao_light_affect = 0.15
 	environment.environment = env
 	world.add_child(environment)
 	var fill := DirectionalLight3D.new()
@@ -68,16 +76,16 @@ func _build_environment(world: Node3D) -> void:
 	camera.fov = 38.0
 	camera.position = Vector3(0.45,4.0,19.0)
 	world.add_child(camera)
-	camera.look_at(Vector3(0,1.6,-0.5),Vector3.UP)
+	camera.look_at(Vector3(0,1.3,-0.5),Vector3.UP)
 	camera.current = true
 
 func _build_room(world: Node3D) -> void:
 	# The wall and floor share a real junction, rather than a framed screen.
-	room_floor = _box(world,Vector3(0,DESIGN.FLOOR_Y-0.08,16),Vector3(80,0.16,40),Color("6b6364"),0.48)
+	room_floor = _box(world,Vector3(0,DESIGN.FLOOR_Y-0.08,16),Vector3(80,0.16,40),_room_material(Color("847c74"),0.43,true))
 	room_floor.name = "Floor"
 	room_floor.layers = 2
 	room_floor.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	room_wall = _box(world,Vector3(0,DESIGN.FLOOR_Y+12,DESIGN.WALL_Z-0.1),Vector3(80,24,0.2),Color("bfb9bd"),0.95)
+	room_wall = _box(world,Vector3(0,DESIGN.FLOOR_Y+12,DESIGN.WALL_Z-0.1),Vector3(80,24,0.2),_room_material(Color("c3bfc0"),0.92,false))
 	room_wall.name = "Wall"
 	room_wall.layers = 4
 	room_wall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -108,8 +116,9 @@ func _build_installation(world: Node3D) -> void:
 	disk.name = "Disk"
 	disk.mesh = DESIGN.disk_mesh()
 	disk.position.y = -DESIGN.DISK_HEIGHT / 2.0
-	disk.material_override = _material(Color("33343f"),0.52)
+	disk.material_override = _room_material(Color("33343f"),0.32,true)
 	rotor.add_child(disk)
+	disk_surface = disk
 	var installation := DESIGN.create_installation()
 	rotor.add_child(installation)
 	for object in PrimitivePiece.collect(installation):
@@ -120,8 +129,9 @@ func _build_lighting(world: Node3D) -> void:
 	key_light.name = "SideLight"
 	key_light.position = DESIGN.LIGHT_POSITION
 	key_light.light_color = Color("fff0dc")
-	key_light.light_energy = 1.5
-	key_light.light_cull_mask = 5
+	key_light.light_energy = 1.2
+	key_light.light_cull_mask = 7
+	key_light.light_specular = 0.0
 	key_light.spot_range = 35.0
 	key_light.spot_attenuation = 0.12
 	key_light.spot_angle = 42.0
@@ -147,6 +157,29 @@ func _build_lighting(world: Node3D) -> void:
 	floor_light.shadow_blur = 0.7
 	world.add_child(floor_light)
 
+func _build_reflections() -> void:
+	floor_reflection = PlanarReflection.new()
+	floor_reflection.name = "FloorReflection"
+	add_child(floor_reflection)
+	var floor_sources: Array[MeshInstance3D] = piece_nodes.duplicate()
+	floor_sources.append(room_wall)
+	floor_sources.append(disk_surface)
+	var floor_texture := floor_reflection.setup(camera,DESIGN.FLOOR_Y,floor_sources,disk_surface)
+	var floor_material := room_floor.material_override as ShaderMaterial
+	floor_material.set_shader_parameter("reflection_texture",floor_texture)
+	floor_material.set_shader_parameter("reflection_strength",0.26)
+	floor_material.set_shader_parameter("reflection_blur",1.8)
+	disk_reflection = PlanarReflection.new()
+	disk_reflection.name = "DiskReflection"
+	add_child(disk_reflection)
+	var disk_sources: Array[MeshInstance3D] = piece_nodes.duplicate()
+	disk_sources.append(room_wall)
+	var disk_texture := disk_reflection.setup(camera,DESIGN.RIG_CENTER.y,disk_sources)
+	var disk_material := disk_surface.material_override as ShaderMaterial
+	disk_material.set_shader_parameter("reflection_texture",disk_texture)
+	disk_material.set_shader_parameter("reflection_strength",0.4)
+	disk_material.set_shader_parameter("reflection_blur",0.7)
+
 func mount_gameplay(field: ShadowField, player: SquarePlayer, level: ChickenLevel) -> void:
 	projection_canvas.level = level
 	field.reparent(projection_canvas,false)
@@ -158,19 +191,22 @@ func set_angle(value: float) -> void:
 	if rotor != null:
 		rotor.rotation.y = value
 
-func _box(parent: Node3D, location: Vector3, dimensions: Vector3, color: Color, roughness: float) -> MeshInstance3D:
+func _box(parent: Node3D, location: Vector3, dimensions: Vector3, material: Material) -> MeshInstance3D:
 	var object := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = dimensions
 	object.mesh = mesh
 	object.position = location
-	object.material_override = _material(color,roughness)
+	object.material_override = material
 	parent.add_child(object)
 	return object
 
-func _material(color: Color, roughness: float) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.roughness = roughness
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+func _room_material(color: Color, roughness: float, is_floor: bool) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = preload("res://shaders/room_surface.gdshader")
+	material.set_shader_parameter("base_color",color)
+	material.set_shader_parameter("surface_roughness",roughness)
+	material.set_shader_parameter("floor_surface",is_floor)
+	material.set_shader_parameter("floor_height",DESIGN.FLOOR_Y)
+	material.set_shader_parameter("wall_depth",DESIGN.WALL_Z)
 	return material

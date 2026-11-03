@@ -36,7 +36,7 @@ func _run() -> void:
 			await RenderingServer.frame_post_draw
 		var frame := root.get_texture().get_image()
 		check(row_max_jump(frame,250)<0.04,"wall has no shadow-acne stripes at phase %.0f" % rad_to_deg(angle))
-		check(row_max_jump(frame,770)<0.04,"floor has no exposed spotlight edge at phase %.0f" % rad_to_deg(angle))
+		check(row_max_jump(frame,800)<0.04,"floor has no exposed spotlight edge at phase %.0f" % rad_to_deg(angle))
 		check(luminance(frame.get_pixel(70,300))-luminance(frame.get_pixel(70,730))>0.15,"floor and wall retain distinct lighting at phase %.0f" % rad_to_deg(angle))
 		# A known interior point of the beige cube's real shadow, away from edges.
 		var canvas_point := DESIGN.project_point(DESIGN.pieces()[0].center,angle)
@@ -51,7 +51,7 @@ func _run() -> void:
 			await RenderingServer.frame_post_draw
 		var unshadowed := root.get_texture().get_image()
 		var shadow_pixels := 0
-		for y in range(580,750):
+		for y in range(580,800):
 			for x in range(180,460):
 				if luminance(unshadowed.get_pixel(x,y))-luminance(frame.get_pixel(x,y))>0.025:
 					shadow_pixels += 1
