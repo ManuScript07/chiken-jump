@@ -37,6 +37,7 @@ func _ready() -> void:
 	viewport.own_world_3d = true
 	viewport.msaa_3d = Viewport.MSAA_2X
 	viewport.positional_shadow_atlas_size = 4096
+	viewport.positional_shadow_atlas_16_bits = true
 	viewport.positional_shadow_atlas_quad_0 = Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_1
 	viewport.positional_shadow_atlas_quad_1 = Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_1
 	viewport.positional_shadow_atlas_quad_2 = Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_1
@@ -85,7 +86,7 @@ func _build_room(world: Node3D) -> void:
 	room_floor.name = "Floor"
 	room_floor.layers = 2
 	room_floor.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	room_wall = _box(world,Vector3(0,DESIGN.FLOOR_Y+12,DESIGN.WALL_Z-0.1),Vector3(80,24,0.2),_room_material(Color("c3bfc0"),0.92,false))
+	room_wall = _box(world,Vector3(0,DESIGN.FLOOR_Y+12,DESIGN.WALL_Z-0.1),Vector3(80,24,0.2),_room_material(Color("c4bcb9"),0.92,false))
 	room_wall.name = "Wall"
 	room_wall.layers = 4
 	room_wall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -133,8 +134,10 @@ func _build_lighting(world: Node3D) -> void:
 	key_light.light_cull_mask = 7
 	key_light.light_specular = 0.0
 	key_light.spot_range = 35.0
-	key_light.spot_attenuation = 0.12
-	key_light.spot_angle = 42.0
+	# Spend existing atlas texels on the visible wall instead of the unused outer cone.
+	# Matched falloff preserves the broad room lighting; the filter width is unchanged.
+	key_light.spot_attenuation = 0.095
+	key_light.spot_angle = 34.0
 	key_light.shadow_enabled = true
 	key_light.shadow_bias = 0.015
 	key_light.shadow_normal_bias = 0.02

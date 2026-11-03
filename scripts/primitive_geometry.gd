@@ -48,4 +48,6 @@ static func mesh(piece: Dictionary) -> ArrayMesh:
 		for index in [i,next,next+count,i,next+count,i+count]:
 			surface.add_vertex(points[index])
 	surface.generate_normals()
+	# Deduplicate identical position/normal pairs without changing baseline shading.
+	surface.index()
 	return surface.commit()
