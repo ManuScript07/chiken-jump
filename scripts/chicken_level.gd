@@ -43,7 +43,7 @@ func _physics_process(_delta: float) -> void:
 		return
 	var keyboard_axis := int(Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)) - int(Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT))
 	player.input_axis = clampf(keyboard_axis + hud.horizontal_input(), -1.0, 1.0)
-	if field.touches_hazard(player.bounds()):
+	if player.position.y > DESIGN.WALL_CROP_Y + DESIGN.WALL_TEXTURE_SIZE.y + 60.0 or field.touches_hazard(player.bounds()):
 		restart()
 		return
 	for i in DESIGN.STAR_POSITIONS.size():

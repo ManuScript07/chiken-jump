@@ -71,7 +71,6 @@ func _physics_process(delta: float) -> void:
 		coyote_time = 0.0
 	jump_pending = false
 	move_and_slide()
-	position.x = clampf(position.x, 33.0, 507.0)
 	support = null
 	if is_on_floor():
 		for i in get_slide_collision_count():

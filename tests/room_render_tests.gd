@@ -42,6 +42,21 @@ func _run() -> void:
 		var canvas_point := DESIGN.project_point(DESIGN.pieces()[0].center,angle)
 		var on_wall := DESIGN.canvas_to_wall(canvas_point)
 		var pixel := Vector2i(level.diorama.camera.unproject_position(on_wall))
-		check(luminance(frame.get_pixelv(pixel))<0.5,"3D cube casts a visible physical shadow at phase %.0f" % rad_to_deg(angle))
+		var shade := frame.get_pixelv(pixel)
+		check(luminance(shade)<0.5,"3D cube casts a visible physical shadow at phase %.0f" % rad_to_deg(angle))
+		check(shade.b > shade.r*1.3 and shade.b > shade.g*1.15,"wall shadow has the requested dark blue tint at phase %.0f" % rad_to_deg(angle))
+		var bounce: OmniLight3D = level.diorama.rotor.get_parent().get_node("FloorBounce")
+		bounce.shadow_enabled = false
+		for i in 4:
+			await RenderingServer.frame_post_draw
+		var unshadowed := root.get_texture().get_image()
+		var shadow_pixels := 0
+		for y in range(580,750):
+			for x in range(180,460):
+				if luminance(unshadowed.get_pixel(x,y))-luminance(frame.get_pixel(x,y))>0.025:
+					shadow_pixels += 1
+		check(shadow_pixels > 12,"3D installation retains visible contact and self shadows at phase %.0f" % rad_to_deg(angle))
+		print("Visible 3D shadow pixels: ",shadow_pixels)
+		bounce.shadow_enabled = true
 	print("RESULT: ",failures," failures")
 	quit(0 if failures==0 else 1)

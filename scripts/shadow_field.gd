@@ -15,6 +15,9 @@ var platform_motion: Dictionary = {}
 var rectangles: Array[Rect2] = []
 var polygons: Array[PackedVector2Array] = []
 var running := true
+var base_body: StaticBody2D
+var base_shape: CollisionPolygon2D
+var base_polygon := PackedVector2Array()
 
 func _ready() -> void:
 	for piece in pieces:
@@ -32,21 +35,12 @@ func _ready() -> void:
 	update_projection(true)
 
 func _build_static_boundaries() -> void:
-	_add_boundary(Vector2(270, 610), Vector2(500, 20))
-	_add_boundary(Vector2(10, 350), Vector2(20, 520))
-	_add_boundary(Vector2(530, 350), Vector2(20, 520))
-
-func _add_boundary(center: Vector2, dimensions: Vector2) -> void:
-	var body := StaticBody2D.new()
-	body.position = center
-	body.collision_layer = 1
-	body.collision_mask = 0
-	var shape_node := CollisionShape2D.new()
-	var shape := RectangleShape2D.new()
-	shape.size = dimensions
-	shape_node.shape = shape
-	body.add_child(shape_node)
-	add_child(body)
+	base_body = StaticBody2D.new()
+	base_body.collision_layer = 1
+	base_body.collision_mask = 0
+	base_shape = CollisionPolygon2D.new()
+	base_body.add_child(base_shape)
+	add_child(base_body)
 
 func _physics_process(delta: float) -> void:
 	if running:
@@ -59,6 +53,8 @@ func reset() -> void:
 	update_projection(true)
 
 func update_projection(reset_motion: bool) -> void:
+	base_polygon = DESIGN.projected_disk_polygon(angle)
+	base_shape.polygon = base_polygon
 	rectangles.clear()
 	polygons.clear()
 	var platform_index := 0

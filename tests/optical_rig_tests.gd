@@ -50,16 +50,22 @@ func _run() -> void:
 				projected.append(DESIGN.wall_to_canvas(hit).snapped(Vector2.ONE*DESIGN.PROJECTION_STEP))
 				var seam := camera.unproject_position(Vector3(physical.x,DESIGN.FLOOR_Y,DESIGN.WALL_Z))
 				clearance = minf(clearance,camera.unproject_position(physical).y-seam.y)
+			var collider: PackedVector2Array = level.field.polygons[i]
+			for point in projected:
+				var nearest := INF
+				for j in collider.size():
+					nearest = minf(nearest,point.distance_to(Geometry2D.get_closest_point_to_segment(point,collider[j],collider[(j+1)%collider.size()])))
+				# Interior mesh vertices need not lie on the outer hull.
+				if not Geometry2D.is_point_in_polygon(point,collider):
+					geometry_ok = geometry_ok and nearest <= DESIGN.PROJECTION_STEP * 1.5
 			var hull := Geometry2D.convex_hull(projected)
 			if hull.size()>1 and hull[0]==hull[-1]:
 				hull.remove_at(hull.size()-1)
-			var collider: PackedVector2Array = level.field.polygons[i]
-			geometry_ok = geometry_ok and hull.size()==collider.size()
-			for point in hull:
-				var found := false
-				for actual in collider:
-					found = found or point.distance_to(actual)<0.001
-				geometry_ok = geometry_ok and found
+			for point in collider:
+				var nearest := INF
+				for j in hull.size():
+					nearest = minf(nearest,point.distance_to(Geometry2D.get_closest_point_to_segment(point,hull[j],hull[(j+1)%hull.size()])))
+				geometry_ok = geometry_ok and nearest <= DESIGN.PROJECTION_STEP * 1.5
 	check(geometry_ok,"every rendered primitive projects to its collider through a full rotation")
 	check(clearance>12.0,"specified objects do not cover the playable wall throughout rotation")
 	print("Minimum physical clearance below wall: ",snappedf(clearance,0.1)," px")

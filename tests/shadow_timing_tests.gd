@@ -30,8 +30,8 @@ func _run() -> void:
 	level = load("res://scenes/main.tscn").instantiate()
 	root.add_child(level)
 	await process_frame
-	var blocked_height := await attempt(0.0)
-	var open_height := await attempt(PI / 2.0)
+	var blocked_height := await attempt(PI / 2.0)
+	var open_height := await attempt(0.0)
 	print("Jump under broad stick: ",blocked_height,"; jump after rotation: ",open_height)
 	if open_height + 25.0 < blocked_height:
 		print("PASS: rotating the 3D stick opens a real jump window")
