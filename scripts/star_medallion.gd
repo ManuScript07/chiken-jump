@@ -29,7 +29,7 @@ func _ready() -> void:
 	world.add_child(environment)
 	model = MeshInstance3D.new()
 	model.mesh = _mesh()
-	model.rotation_degrees = Vector3(12,-30,0)
+	model.rotation_degrees = Vector3(12,0,0)
 	model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var gold := StandardMaterial3D.new()
 	gold.albedo_color = Color("e5ac3b")

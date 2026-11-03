@@ -3,11 +3,16 @@ extends RefCounted
 
 const DESIGN = preload("res://scripts/level_design.gd")
 const PATTERNS := [[85.0,430.0],[70.0,210.0,355.0,480.0],[455.0,270.0,110.0],[135.0,405.0],[75.0,215.0,350.0,475.0]]
-const SPEEDS := [0.16,0.18,0.22,-0.18,-0.20,-0.24]
+const ROTATION_INTERVAL := 4.5
+const SPEEDS := [0.24,0.36,-0.34,-0.44,0.38,-0.42,0.46,-0.38]
+const MAX_ROTATION_SPEED := 0.48
 
-func rotation_target(index: int) -> float:
-	var speed: float = SPEEDS[index%SPEEDS.size()]
-	return signf(speed)*minf(absf(speed)+float(index/SPEEDS.size())*0.015,0.28)
+func rotation_target(phase: int) -> float:
+	var speed: float = SPEEDS[phase%SPEEDS.size()]
+	return signf(speed)*minf(absf(speed)+float(phase/SPEEDS.size())*0.015,MAX_ROTATION_SPEED)
+
+func rotation_phase(elapsed: float) -> int:
+	return floori(maxf(0.0,elapsed)/ROTATION_INTERVAL)
 
 func _top_at(x: float, polygons: Array[PackedVector2Array]) -> float:
 	var top := 600.0

@@ -44,28 +44,29 @@ func _domain() -> void:
 	var points := PackedVector2Array([Vector2(10,20),Vector2(30,40)])
 	run.start(points)
 	points[0] = Vector2.ZERO
-	check(run.remaining==60 and run.targets[0]==Vector2(10,20),"60-second start owns an independent target snapshot")
+	check(run.remaining==20 and run.targets[0]==Vector2(10,20),"20-second start owns an independent target snapshot")
 	run.tick(8)
-	check(run.collect(0) and run.remaining==55 and run.total_stars==1,"a star adds exactly three seconds")
+	check(run.collect(0) and run.remaining==13.5 and run.total_stars==1,"a star adds exactly 1.5 seconds")
 	check(not run.collect(0) and not run.collect(-1) and not run.collect(2) and run.total_stars==1,"duplicate and invalid pickups cannot award time")
 	run.pause()
 	run.tick(20)
-	check(run.remaining==55 and not run.collect(1),"pause freezes time and pickups")
+	check(run.remaining==13.5 and not run.collect(1),"pause freezes time and pickups")
 	run.resume()
 	run.collect(1)
 	check(run.awaiting_wave and run.waves_completed==1,"last pickup completes a wave")
 	run.next_wave(PackedVector2Array([Vector2(1,2),Vector2(3,4),Vector2(5,6)]))
 	check(run.wave_index==1 and run.collected.size()==3 and not run.awaiting_wave,"next wave replaces the objective without resetting time or score")
+	run.remaining = 19
 	run.collect(0)
 	run.collect(1)
-	check(run.remaining==60,"time bonus is capped at one minute")
+	check(run.remaining==20,"time bonus is capped at 20 seconds")
 	run.tick(61)
 	check(run.state==RunSession.State.FINISHED and run.end_reason==RunSession.EndReason.TIME and run.remaining==0,"empty timer ends the run")
 	run.resume()
 	run.tick(5)
 	check(run.state==RunSession.State.FINISHED and not run.collect(2),"finished run cannot resume or collect")
 	run.start(PackedVector2Array([Vector2.ZERO]))
-	check(run.remaining==60 and run.total_stars==0 and run.wave_index==0,"restart clears the whole attempt")
+	check(run.remaining==20 and run.total_stars==0 and run.wave_index==0,"restart clears the whole attempt")
 	var director := WaveDirector.new()
 	var layouts_ok := true
 	var counts: Dictionary = {}
@@ -85,7 +86,7 @@ func _domain() -> void:
 					layouts_ok = layouts_ok and positions[i].distance_to(positions[j])>64
 			previous = positions
 	check(layouts_ok and counts.size()==3,"864 generated waves stay separated, outside solids and away from the player; counts vary 2–4")
-	check(director.rotation_target(0)>0 and director.rotation_target(3)<0 and absf(director.rotation_target(50))<=0.28,"rotation schedule reverses direction and has a speed limit")
+	check(director.rotation_target(0)>0 and director.rotation_target(3)<0 and absf(director.rotation_target(50))<=WaveDirector.MAX_ROTATION_SPEED,"rotation schedule reverses direction and has a speed limit")
 
 func _run() -> void:
 	_domain()
@@ -112,7 +113,7 @@ func _run() -> void:
 	tap("right")
 	tap("jump")
 	await steps(3)
-	check(level.session.remaining>59 and level.session.total_stars==0 and not paused,"menu restart starts a fresh minute")
+	check(level.session.remaining>19 and level.session.total_stars==0 and not paused,"menu restart starts a fresh 20 seconds")
 	# Collect through the actual controller and wait for replacement targets.
 	level.player.set_physics_process(false)
 	level.player.reset_pending = false
@@ -125,7 +126,7 @@ func _run() -> void:
 	level.field.set_rotation_target(-0.22)
 	var previous := level.field.angular_velocity
 	var max_step := 0.0
-	for i in 360:
+	for i in 120:
 		await physics_frame
 		max_step = maxf(max_step,absf(level.field.angular_velocity-previous))
 		previous = level.field.angular_velocity
@@ -135,7 +136,7 @@ func _run() -> void:
 	check(paused and level.session.end_reason==RunSession.EndReason.FALL,"falling beyond the platform ends the attempt")
 	tap("jump")
 	await steps(3)
-	check(not paused and level.session.remaining>59,"game-over confirm restarts")
+	check(not paused and level.session.remaining>19,"game-over confirm restarts")
 	# A thin inset must overlap two solids for multiple ticks before declaring a crush.
 	level.field.running = false
 	level.player.set_physics_process(false)

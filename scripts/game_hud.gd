@@ -1,6 +1,7 @@
 class_name GameHud
 extends Control
 
+signal action_pressed(action: String)
 signal jump_pressed
 signal pause_pressed
 signal resume_pressed
@@ -10,6 +11,7 @@ var session: RunSession
 var menu: RunMenu
 var meter_view: SculptedMeter
 var star_medallion: StarMedallion
+var score_view: SculptedLabel
 var keys: Dictionary = {}
 var layout: Dictionary = {}
 var touch_actions: Dictionary = {}
@@ -21,6 +23,8 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	star_medallion = StarMedallion.new()
 	add_child(star_medallion)
+	score_view = SculptedLabel.new()
+	add_child(score_view)
 	meter_view = SculptedMeter.new()
 	add_child(meter_view)
 	menu = RunMenu.new()
@@ -56,18 +60,22 @@ func _relayout() -> void:
 	menu.size = size
 	menu.center = layout.menu_center
 	menu.scale_factor = layout.factor
-	menu.queue_redraw()
+	menu.refresh_layout()
+	_refresh_score()
 	queue_redraw()
 
 func _on_state_changed(_state: int) -> void:
 	clear_input()
 	menu.show_state(session)
+	keys["pause"].visible = session.state!=RunSession.State.FINISHED
+	_refresh_score()
 	if session.state==RunSession.State.RUNNING:
 		shown_ratio = session.time_ratio()
 	queue_redraw()
 
 func _on_star(_index: int, _point: Vector2) -> void:
 	pickup_pulse = 1.0
+	_refresh_score()
 
 func clear_input() -> void:
 	touch_actions.clear()
@@ -126,7 +134,7 @@ func _input(event: InputEvent) -> void:
 
 func _action_at(point: Vector2) -> String:
 	for action: String in keys:
-		if action_rect(action).has_point(point):
+		if keys[action].visible and action_rect(action).has_point(point):
 			return action
 	return ""
 
@@ -147,6 +155,10 @@ func _drag(index: int, point: Vector2) -> void:
 		_activate(next)
 
 func _activate(action: String) -> void:
+	if not keys.has(action) or not keys[action].visible:
+		return
+	keys[action].press()
+	action_pressed.emit(action)
 	if action=="pause":
 		if session.state==RunSession.State.RUNNING:
 			pause_pressed.emit()
@@ -187,4 +199,12 @@ func _draw() -> void:
 	var center := Vector2(meter.position.x+12*factor,meter.end.y+27*factor)
 	if star_medallion.texture!=null:
 		draw_texture_rect(star_medallion.texture,Rect2(center-Vector2(20,20)*factor,Vector2(40,40)*factor),false)
-	GameArt.draw_raised_text(self,str(session.total_stars),center+Vector2(23,7)*factor,roundi(21*factor),Color("e9e4db"),factor)
+
+func _refresh_score() -> void:
+	if session==null or layout.is_empty():
+		return
+	var factor: float = layout.factor
+	var meter: Rect2 = layout.meter
+	var center := Vector2(meter.position.x+12*factor,meter.end.y+27*factor)
+	score_view.configure(str(session.total_stars),21*factor,Color("e9e4db"))
+	score_view.position = center+Vector2(17*factor,-score_view.size.y*0.5)

@@ -8,8 +8,8 @@ signal wave_completed(index: int)
 
 enum State { RUNNING, PAUSED, FINISHED }
 enum EndReason { TIME, FALL, CRUSH, HAZARD }
-const DURATION := 60.0
-const STAR_BONUS := 3.0
+const DURATION := 20.0
+const STAR_BONUS := 1.5
 
 var state := State.RUNNING
 var end_reason := EndReason.TIME

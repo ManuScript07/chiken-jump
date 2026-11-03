@@ -11,14 +11,20 @@ var session := RunSession.new()
 var director := WaveDirector.new()
 var crush := CrushDetector.new()
 var wave_delay := 0.0
+var rotation_phase := -1
+var feedback: GameFeedback
 
 func _ready() -> void:
 	# Observe the result of this tick's movement and collider updates.
 	process_physics_priority = 100
+	feedback = GameFeedback.new()
+	add_child(feedback)
 	player.shadow_field = field
 	diorama.mount_gameplay(field,player,session)
 	field.projection_changed.connect(diorama.set_angle)
 	hud.bind(session)
+	hud.action_pressed.connect(feedback.button_pressed)
+	session.star_collected.connect(feedback.star_collected)
 	hud.jump_pressed.connect(_jump)
 	hud.pause_pressed.connect(session.pause)
 	hud.resume_pressed.connect(session.resume)
@@ -33,6 +39,9 @@ func restart() -> void:
 	wave_delay = 0.0
 	crush.reset()
 	field.reset()
+	rotation_phase = 0
+	field.angular_velocity = director.rotation_target(0)
+	field.set_rotation_target(field.angular_velocity)
 	player.reset_to(DESIGN.PLAYER_START)
 	session.start(director.build_wave(0,field.polygons,player.position,PackedVector2Array()))
 	diorama.projection_canvas.clear_effects()
@@ -59,6 +68,10 @@ func _physics_process(delta: float) -> void:
 	session.tick(delta)
 	if session.state!=RunSession.State.RUNNING:
 		return
+	var next_phase := director.rotation_phase(session.elapsed)
+	if next_phase!=rotation_phase:
+		rotation_phase = next_phase
+		field.set_rotation_target(director.rotation_target(rotation_phase))
 	var keyboard_axis := int(Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT))-int(Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT))
 	player.input_axis = clampf(keyboard_axis+hud.horizontal_input(),-1.0,1.0)
 	if player.position.y>DESIGN.WALL_CROP_Y+DESIGN.WALL_TEXTURE_SIZE.y+60.0:
@@ -75,7 +88,6 @@ func _physics_process(delta: float) -> void:
 		if wave_delay<=0.0:
 			var points := director.build_wave(session.wave_index+1,field.polygons,player.position,session.targets)
 			session.next_wave(points)
-			field.set_rotation_target(director.rotation_target(session.wave_index))
 			diorama.projection_canvas.queue_redraw()
 	else:
 		for i in session.targets.size():

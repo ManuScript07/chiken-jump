@@ -4,12 +4,18 @@ extends Control
 var kind := "jump"
 var pressure := 0.0
 var held := false
+var feedback_time := 0.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
+func press() -> void:
+	# State changes can clear gameplay input immediately; key travel must stay visible.
+	feedback_time = 0.12
+
 func _process(delta: float) -> void:
-	var next := move_toward(pressure,1.0 if held else 0.0,delta*16.0)
+	feedback_time = maxf(0.0,feedback_time-delta)
+	var next := move_toward(pressure,1.0 if held or feedback_time>0.0 else 0.0,delta*16.0)
 	if not is_equal_approx(next,pressure):
 		pressure = next
 		queue_redraw()

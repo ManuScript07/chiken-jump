@@ -10,7 +10,7 @@ const HAZARD_COLOR := Color("b95650")
 var angle := 0.0
 var angular_velocity := DESIGN.ROTATION_SPEED
 var target_angular_velocity := DESIGN.ROTATION_SPEED
-const ANGULAR_ACCELERATION := 0.08
+const ANGULAR_ACCELERATION := 0.28
 var pieces: Array[Dictionary] = DESIGN.pieces()
 var platform_bodies: Array[StaticBody2D] = []
 var platform_shapes: Array[CollisionPolygon2D] = []
@@ -52,7 +52,7 @@ func _physics_process(delta: float) -> void:
 		update_projection(false)
 
 func set_rotation_target(speed: float) -> void:
-	target_angular_velocity = clampf(speed,-0.28,0.28)
+	target_angular_velocity = clampf(speed,-WaveDirector.MAX_ROTATION_SPEED,WaveDirector.MAX_ROTATION_SPEED)
 
 func reset() -> void:
 	angle = 0.0
