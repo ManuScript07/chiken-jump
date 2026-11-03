@@ -1,8 +1,8 @@
 # Сборка APK
 
-Профиль `Android` хранится в `export_presets.cfg`. Результат — `builds/kuratenn-debug.apk`. Папка `builds/` исключена из Git.
+Профиль `Android` хранится в `export_presets.cfg`. Основной результат — `builds/kuratenn.apk` (Release). Папка `builds/` исключена из Git.
 
-Пакет: `org.chikenjump.game`, название: «Куратень», версия: `0.1.0`. В APK включены ARM64, ARMv7 и x86-64. Минимальная версия Android задаётся официальным шаблоном Godot: API 24 (Android 7.0); текущая целевая версия — API 36. Это подписанная отладочная сборка для установки и тестирования.
+Пакет: `org.chikenjump.game`, название: «Куратень», версия: `0.1.0`. В APK включены ARM64, ARMv7 и x86-64. Минимальная версия Android задаётся официальным шаблоном Godot: API 24 (Android 7.0); текущая целевая версия — API 36. Основная сборка использует релизный шаблон движка и отдельный локальный релизный ключ. Debugger и проверки debug-режима отключены; `project.godot` отключает stdout, stderr и файловое логирование для признака `release`.
 
 ## Установленные инструменты
 
@@ -17,16 +17,14 @@
 Из папки проекта в PowerShell:
 
 ```powershell
-$env:JAVA_HOME = 'D:/Android Studio/jbr'
-$env:ANDROID_HOME = "$env:LOCALAPPDATA/Android/Sdk"
-$env:GODOT_ANDROID_KEYSTORE_DEBUG_PATH = "$env:APPDATA/Godot/keystores/debug.keystore"
-$env:GODOT_ANDROID_KEYSTORE_DEBUG_USER = 'androiddebugkey'
-$env:GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD = 'android'
-New-Item -ItemType Directory -Path builds -Force | Out-Null
-godot_console.exe --headless --path . --export-debug Android builds/kuratenn-debug.apk
+./tools/build_android.ps1 -Configuration Release
 ```
 
-Здесь используется стандартный локальный отладочный ключ Godot. Для публикации потребуется отдельная релизная подпись; эта сборка предназначена для проверки игры.
+Скрипт находит Java через `JAVA_HOME` или установленную Android Studio, собирает APK, проверяет подпись и сохраняет SHA-256 рядом с результатом. При необходимости пути передаются через `-JavaHome` и `-AndroidSdk`. Для отладочной сборки используется `-Configuration Debug`, результат — `builds/kuratenn-debug.apk`.
+
+Релизный ключ находится в `%APPDATA%/Godot/keystores/kuratenn-release.keystore`, его пароль защищён Windows DPAPI в соседнем `kuratenn-release.password.xml`. Эти файлы не находятся в проекте и не попадают в Git. Для последующих обновлений необходимо сохранить тот же ключ; файл пароля открывается под текущей учётной записью Windows. При переносе на другой компьютер пароль также нужно перенести отдельно.
+
+Релиз и debug подписаны разными ключами. Если debug уже установлен на телефоне, перед установкой релиза его нужно удалить. При последующих релизных сборках ключ остаётся прежним.
 
 В `project.godot` включён импорт ETC2/ASTC для Android. Профиль исключает тесты, документацию и инструменты MCP; экспортный плагин также убирает служебный autoload. Разрешение `android.permission.VIBRATE` включено. Разрешение доступа к интернету игре не требуется.
 
