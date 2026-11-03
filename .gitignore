@@ -2,3 +2,22 @@
 .godot/
 /android/
 /builds/
+
+# Local configuration and credentials
+.mcp.json
+.env
+.env.*
+!.env.example
+/export_credentials.cfg
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.password.xml
+
+# Exported packages and desktop files
+*.apk
+*.aab
+*.idsig
+.DS_Store
+Thumbs.db
