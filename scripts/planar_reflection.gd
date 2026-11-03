@@ -9,21 +9,25 @@ var plane_height := 0.0
 var sources: Array[MeshInstance3D] = []
 var proxies: Array[MeshInstance3D] = []
 var plain_disk: MeshInstance3D
+var captures_shadows := false
 
 # An isolated capture world prevents reflective surfaces from sampling themselves.
 # Meshes and materials are shared; only instance transforms are copied each frame.
-func setup(source: Camera3D, height: float, captured: Array[MeshInstance3D], disk: MeshInstance3D = null) -> ViewportTexture:
+func setup(source: Camera3D, height: float, captured: Array[MeshInstance3D], disk: MeshInstance3D = null, reflect_shadows: bool = false) -> ViewportTexture:
 	source_camera = source
 	plane_height = height
 	sources = captured
 	plain_disk = disk
+	captures_shadows = reflect_shadows
 	process_priority = -100
 	viewport = SubViewport.new()
 	viewport.name = "Capture"
 	viewport.size = CAPTURE_SIZE
 	viewport.own_world_3d = true
 	viewport.transparent_bg = true
-	viewport.positional_shadow_atlas_size = 0
+	# Only the floor capture needs the wall silhouette; its atlas is deliberately small.
+	viewport.positional_shadow_atlas_size = 1024 if captures_shadows else 0
+	viewport.positional_shadow_atlas_quad_0 = Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_1
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	add_child(viewport)
 	var world := Node3D.new()
@@ -35,12 +39,13 @@ func setup(source: Camera3D, height: float, captured: Array[MeshInstance3D], dis
 	for child in source.get_parent().get_children():
 		if child is Light3D:
 			var light := child.duplicate() as Light3D
-			light.shadow_enabled = false
+			light.shadow_enabled = captures_shadows and child is SpotLight3D and child.shadow_enabled
 			world.add_child(light)
 	for object in sources:
 		var proxy := MeshInstance3D.new()
 		proxy.mesh = object.mesh
 		proxy.layers = object.layers
+		proxy.cast_shadow = object.cast_shadow
 		proxy.material_override = object.material_override
 		if object == plain_disk:
 			var matte := StandardMaterial3D.new()
@@ -68,6 +73,7 @@ func _update_camera() -> void:
 			continue
 		proxies[i].global_transform = sources[i].global_transform
 		proxies[i].visible = sources[i].is_visible_in_tree()
+		proxies[i].cast_shadow = sources[i].cast_shadow
 		if proxies[i].mesh != sources[i].mesh:
 			proxies[i].mesh = sources[i].mesh
 		if sources[i] != plain_disk and proxies[i].material_override != sources[i].material_override:

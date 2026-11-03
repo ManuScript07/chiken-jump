@@ -74,14 +74,14 @@ func _build_environment(world: Node3D) -> void:
 	camera = Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	camera.fov = 38.0
-	camera.position = Vector3(0.45,4.0,19.0)
+	camera.position = Vector3(0.8,4.0,19.0)
 	world.add_child(camera)
 	camera.look_at(Vector3(0,1.3,-0.5),Vector3.UP)
 	camera.current = true
 
 func _build_room(world: Node3D) -> void:
 	# The wall and floor share a real junction, rather than a framed screen.
-	room_floor = _box(world,Vector3(0,DESIGN.FLOOR_Y-0.08,16),Vector3(80,0.16,40),_room_material(Color("847c74"),0.43,true))
+	room_floor = _box(world,Vector3(0,DESIGN.FLOOR_Y-0.08,16),Vector3(80,0.16,40),_room_material(Color("807d82"),0.52,true))
 	room_floor.name = "Floor"
 	room_floor.layers = 2
 	room_floor.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -144,7 +144,7 @@ func _build_lighting(world: Node3D) -> void:
 	# Broad bounced room light illuminates the floor without exposing a spotlight cone.
 	var floor_light := OmniLight3D.new()
 	floor_light.name = "FloorBounce"
-	floor_light.position = Vector3(0,5,4)
+	floor_light.position = Vector3(0,5,1.5)
 	floor_light.light_color = Color("d3ccda")
 	floor_light.light_energy = 0.85
 	floor_light.omni_range = 24.0
@@ -164,11 +164,17 @@ func _build_reflections() -> void:
 	var floor_sources: Array[MeshInstance3D] = piece_nodes.duplicate()
 	floor_sources.append(room_wall)
 	floor_sources.append(disk_surface)
-	var floor_texture := floor_reflection.setup(camera,DESIGN.FLOOR_Y,floor_sources,disk_surface)
+	var floor_texture := floor_reflection.setup(camera,DESIGN.FLOOR_Y,floor_sources,disk_surface,true)
 	var floor_material := room_floor.material_override as ShaderMaterial
 	floor_material.set_shader_parameter("reflection_texture",floor_texture)
-	floor_material.set_shader_parameter("reflection_strength",0.26)
-	floor_material.set_shader_parameter("reflection_blur",1.8)
+	floor_material.set_shader_parameter("reflection_strength",0.3)
+	floor_material.set_shader_parameter("reflection_blur",2.4)
+	floor_material.set_shader_parameter("reflection_fade_distance",3.5)
+	# A low-cost diffuse approximation complements the physically mirrored wall.
+	floor_material.set_shader_parameter("wall_bounce_color",key_light.light_color)
+	floor_material.set_shader_parameter("wall_bounce_strength",key_light.light_energy*1.5)
+	floor_material.set_shader_parameter("wall_bounce_height",4.5)
+	floor_material.set_shader_parameter("wall_bounce_width",7.0)
 	disk_reflection = PlanarReflection.new()
 	disk_reflection.name = "DiskReflection"
 	add_child(disk_reflection)

@@ -39,6 +39,7 @@ func _run() -> void:
 	var floor_material := level.diorama.room_floor.material_override as ShaderMaterial
 	var wall_material := level.diorama.room_wall.material_override as ShaderMaterial
 	var disk_material := level.diorama.disk_surface.material_override as ShaderMaterial
+	var floor_reflection_strength: float = floor_material.get_shader_parameter("reflection_strength")
 	check((level.diorama.key_light.light_cull_mask & level.diorama.room_floor.layers)!=0 and (level.diorama.key_light.light_cull_mask & level.diorama.room_wall.layers)!=0,"one key source illuminates both the floor and wall")
 	var previous := PackedByteArray()
 	for angle in [0.0,PI/4.0,PI/2.0]:
@@ -74,7 +75,7 @@ func _run() -> void:
 		floor_material.set_shader_parameter("reflection_strength",0.0)
 		await settle()
 		check(changed_pixels(baseline,root.get_texture().get_image(),Rect2i(0,535,540,270))>20,"floor reflection contributes to the final image")
-		floor_material.set_shader_parameter("reflection_strength",0.26)
+		floor_material.set_shader_parameter("reflection_strength",floor_reflection_strength)
 		disk_material.set_shader_parameter("reflection_strength",0.0)
 		await settle()
 		check(changed_pixels(baseline,root.get_texture().get_image(),Rect2i(150,620,330,180))>40,"disk reflection contributes to the final image")

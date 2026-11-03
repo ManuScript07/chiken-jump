@@ -11,6 +11,12 @@ uniform float corner_strength : hint_range(0.0,1.0) = 0.65;
 uniform sampler2D reflection_texture : source_color,filter_linear,repeat_disable;
 uniform float reflection_strength : hint_range(0.0,1.0) = 0.0;
 uniform float reflection_blur : hint_range(0.0,5.0) = 1.0;
+uniform float reflection_fade_distance : hint_range(0.0,20.0) = 0.0;
+// Diffuse wall bounce is a finite-height strip approximation, in world units.
+uniform vec4 wall_bounce_color : source_color = vec4(1.0,0.94,0.86,1.0);
+uniform float wall_bounce_strength : hint_range(0.0,2.0) = 0.0;
+uniform float wall_bounce_height : hint_range(0.1,10.0) = 3.0;
+uniform float wall_bounce_width : hint_range(0.1,20.0) = 7.0;
 varying vec3 world_position;
 varying vec3 world_normal;
 
@@ -36,6 +42,13 @@ void fragment() {
 	float distance_to_corner = floor_surface ? max(world_position.z-wall_depth,0.0) : max(world_position.y-floor_height,0.0);
 	AO = 1.0-corner_strength*exp(-distance_to_corner/corner_radius);
 	AO_LIGHT_AFFECT = 0.15;
+	float top_face = smoothstep(0.8,0.98,normalize(world_normal).y);
+	float floor_distance = max(world_position.z-wall_depth,0.0);
+	// Integrating a diffuse vertical strip gives 0.5*(1-d/sqrt(d*d+h*h)).
+	// It spreads over a physical distance, instead of painting a screen-space seam.
+	float strip_irradiance = 0.5*(1.0-floor_distance/sqrt(floor_distance*floor_distance+wall_bounce_height*wall_bounce_height));
+	float lateral_falloff = exp(-pow(world_position.x/wall_bounce_width,2.0));
+	EMISSION = ALBEDO*wall_bounce_color.rgb*wall_bounce_strength*strip_irradiance*lateral_falloff*top_face;
 	if (reflection_strength>0.0) {
 		// Mirror the vertical texture axis after reflecting the camera plane.
 		vec2 uv = vec2(SCREEN_UV.x,1.0-SCREEN_UV.y);
@@ -49,17 +62,18 @@ void fragment() {
 			}
 		}
 		float fresnel = pow(1.0-max(dot(normalize(NORMAL),normalize(VIEW)),0.0),5.0);
-		float top_face = smoothstep(0.8,0.98,normalize(world_normal).y);
-		float amount = reflection_strength*mix(0.35,1.0,fresnel)*top_face;
+		float distance_fade = reflection_fade_distance>0.0 ? exp(-floor_distance/reflection_fade_distance) : 1.0;
+		float amount = reflection_strength*mix(0.35,1.0,fresnel)*top_face*distance_fade;
 		ALBEDO *= 1.0-amount*reflected.a;
-		EMISSION = reflected.rgb*amount;
+		EMISSION = EMISSION*(1.0-amount*reflected.a)+reflected.rgb*amount;
 	}
 }
 
 void light() {
 	float cosine = max(dot(NORMAL,LIGHT),0.0);
-	// Matte floor response keeps the grazing key light below the broad room fill.
-	float grazing_response = floor_surface ? smoothstep(0.03,0.3,cosine) : 1.0;
-	DIFFUSE_LIGHT += ALBEDO*LIGHT_COLOR*ATTENUATION*cosine*grazing_response;
+	// Rough surfaces retain a small grazing response, without a discontinuous cutoff.
+	// The broad wall bounce supplies most of the indirect floor illumination.
+	float rough_grazing = floor_surface ? mix(0.12,1.0,smoothstep(0.0,0.3,cosine)) : 1.0;
+	DIFFUSE_LIGHT += ALBEDO*LIGHT_COLOR*ATTENUATION*cosine*rough_grazing;
 }
 

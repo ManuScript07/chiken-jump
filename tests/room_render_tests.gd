@@ -29,6 +29,16 @@ func _run() -> void:
 	await process_frame
 	level.field.running = false
 	level.player.enabled = false
+	# Inspect the light footprint without legitimate prop shadows crossing the sample rows.
+	level.diorama.rotor.visible = false
+	for i in 8:
+		await RenderingServer.frame_post_draw
+	var empty_room := root.get_texture().get_image()
+	var floor_is_smooth := true
+	for y in range(550,801,20):
+		floor_is_smooth = floor_is_smooth and row_max_jump(empty_room,y)<0.04
+	check(floor_is_smooth,"unobstructed floor has no exposed spotlight edge")
+	level.diorama.rotor.visible = true
 	for angle in [0.0,PI/4.0,PI/2.0]:
 		level.field.angle = angle
 		level.field.update_projection(true)
@@ -36,7 +46,6 @@ func _run() -> void:
 			await RenderingServer.frame_post_draw
 		var frame := root.get_texture().get_image()
 		check(row_max_jump(frame,250)<0.04,"wall has no shadow-acne stripes at phase %.0f" % rad_to_deg(angle))
-		check(row_max_jump(frame,800)<0.04,"floor has no exposed spotlight edge at phase %.0f" % rad_to_deg(angle))
 		check(luminance(frame.get_pixel(70,300))-luminance(frame.get_pixel(70,730))>0.15,"floor and wall retain distinct lighting at phase %.0f" % rad_to_deg(angle))
 		# A known interior point of the beige cube's real shadow, away from edges.
 		var canvas_point := DESIGN.project_point(DESIGN.pieces()[0].center,angle)
