@@ -2,6 +2,8 @@ class_name DiskDiorama
 extends Control
 
 const DESIGN = preload("res://scripts/level_design.gd")
+var scene_viewport: SubViewport
+var scene_container: TextureRect
 var rotor: Node3D
 var wall_viewport: SubViewport
 var projection_canvas: ProjectionCanvas
@@ -27,12 +29,15 @@ func _ready() -> void:
 	projection_canvas = ProjectionCanvas.new()
 	projection_canvas.position = -Vector2(DESIGN.WALL_CROP_X,DESIGN.WALL_CROP_Y)
 	wall_viewport.add_child(projection_canvas)
-	var container := SubViewportContainer.new()
+	var container := TextureRect.new()
+	scene_container = container
 	container.size = size
-	container.stretch = true
+	container.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	container.stretch_mode = TextureRect.STRETCH_SCALE
 	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(container)
 	var viewport := SubViewport.new()
+	scene_viewport = viewport
 	viewport.size = Vector2i(540,960)
 	viewport.own_world_3d = true
 	viewport.msaa_3d = Viewport.MSAA_2X
@@ -43,6 +48,7 @@ func _ready() -> void:
 	viewport.positional_shadow_atlas_quad_2 = Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_1
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	container.add_child(viewport)
+	container.texture = viewport.get_texture()
 	var world := Node3D.new()
 	world.name = "Room"
 	viewport.add_child(world)
@@ -51,6 +57,8 @@ func _ready() -> void:
 	_build_installation(world)
 	_build_lighting(world)
 	_build_reflections()
+	get_viewport().size_changed.connect(_resize_view)
+	_resize_view()
 
 func _build_environment(world: Node3D) -> void:
 	var environment := WorldEnvironment.new()
@@ -189,12 +197,35 @@ func _build_reflections() -> void:
 	disk_material.set_shader_parameter("reflection_strength",0.4)
 	disk_material.set_shader_parameter("reflection_blur",0.7)
 
-func mount_gameplay(field: ShadowField, player: SquarePlayer, level: ChickenLevel) -> void:
-	projection_canvas.level = level
+func mount_gameplay(field: ShadowField, player: SquarePlayer, session: RunSession) -> void:
+	projection_canvas.session = session
 	field.reparent(projection_canvas,false)
 	field.visible = false
 	player.reparent(projection_canvas,false)
 	projection_canvas.queue_redraw()
+
+# Preserve the original composition and perspective, extending the room on taller
+# or wider displays. Rendering is bounded independently of the device pixel count.
+func _resize_view() -> void:
+	size = get_viewport_rect().size
+	var aspect := size.x/maxf(size.y,1.0)
+	var target := Vector2(540,540/aspect) if aspect<=0.5625 else Vector2(960*aspect,960)
+	target *= minf(1.0,sqrt(800000.0/(target.x*target.y)))
+	scene_container.size = size
+	scene_viewport.size = Vector2i(target.round())
+	if aspect<=0.5625:
+		camera.keep_aspect = Camera3D.KEEP_WIDTH
+		camera.fov = rad_to_deg(2.0*atan(tan(deg_to_rad(38.0)*0.5)*0.5625))
+	else:
+		camera.keep_aspect = Camera3D.KEEP_HEIGHT
+		camera.fov = 38.0
+	floor_reflection.refresh_size()
+	disk_reflection.refresh_size()
+
+func set_simulation_paused(value: bool) -> void:
+	var mode := SubViewport.UPDATE_ONCE if value else SubViewport.UPDATE_ALWAYS
+	for viewport: SubViewport in [scene_viewport,wall_viewport,floor_reflection.viewport,disk_reflection.viewport]:
+		viewport.render_target_update_mode = mode
 
 func set_angle(value: float) -> void:
 	if rotor != null:

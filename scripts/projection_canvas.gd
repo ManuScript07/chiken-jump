@@ -1,20 +1,31 @@
 class_name ProjectionCanvas
 extends Node2D
 
-const DESIGN = preload("res://scripts/level_design.gd")
-var level: ChickenLevel
+var session: RunSession
+var pickups: Array[Dictionary] = []
+
+func add_pickup(_index: int, point: Vector2) -> void:
+	pickups.append({"point":point,"life":0.22})
+	queue_redraw()
+
+func clear_effects() -> void:
+	pickups.clear()
+	queue_redraw()
+
+func _process(delta: float) -> void:
+	if pickups.is_empty():
+		return
+	for pickup in pickups:
+		pickup.life -= delta
+	pickups = pickups.filter(func(pickup: Dictionary) -> bool: return pickup.life>0.0)
+	queue_redraw()
 
 func _draw() -> void:
-	# Transparent gameplay markings on the physical wall.
-	if level == null:
+	if session==null:
 		return
-	for i in DESIGN.STAR_POSITIONS.size():
-		if not level.collected[i]:
-			var p: Vector2 = DESIGN.STAR_POSITIONS[i]
-			var points := PackedVector2Array()
-			for j in 10:
-				var radius := 12.0 if j % 2 == 0 else 5.5
-				points.append(p + Vector2.from_angle(-PI / 2 + j * PI / 5) * radius)
-			draw_colored_polygon(points, Color("f3bc4d"))
-			points.append(points[0])
-			draw_polyline(points, Color("a66720"), 1.5, true)
+	for i in session.targets.size():
+		if not session.collected[i]:
+			GameArt.draw_star(self,session.targets[i],12.0)
+	for pickup in pickups:
+		var life: float = pickup.life/0.22
+		GameArt.draw_star(self,pickup.point+Vector2(0,-14*(1-life)),12*life,life)

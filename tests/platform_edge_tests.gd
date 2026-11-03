@@ -57,14 +57,14 @@ func _run() -> void:
 	await steps(5)
 	level.hud.touch_actions[900] = "left"
 	var left_surface := false
-	var respawned := false
+	var ended := false
 	for i in 180:
 		await physics_frame
 		left_surface = left_surface or level.player.position.x<edges.x-16.0
-		if left_surface and level.player.position.distance_to(DESIGN.PLAYER_START)<4.0:
-			respawned = true
+		if level.session.state==RunSession.State.FINISHED:
+			ended = level.session.end_reason==RunSession.EndReason.FALL
 			break
-	check(left_surface and respawned,"walking off the projected disk triggers a clean restart")
+	check(left_surface and ended,"walking off the projected disk ends the attempt")
 	print("Projected top edges: ",edges)
 	print("RESULT: ",failures," failures")
 	quit(0 if failures==0 else 1)

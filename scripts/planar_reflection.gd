@@ -62,6 +62,16 @@ func setup(source: Camera3D, height: float, captured: Array[MeshInstance3D], dis
 	_update_camera()
 	return viewport.get_texture()
 
+func refresh_size() -> void:
+	if not is_instance_valid(source_camera):
+		return
+	var source_size := source_camera.get_viewport().get_visible_rect().size
+	var ratio := source_size.x/maxf(1.0,source_size.y)
+	var target := Vector2(180,180/ratio) if ratio<=0.5625 else Vector2(320*ratio,320)
+	target *= minf(1.0,sqrt(90000.0/(target.x*target.y)))
+	viewport.size = Vector2i(target.round())
+	_update_camera()
+
 func _process(_delta: float) -> void:
 	if is_instance_valid(source_camera):
 		_update_camera()

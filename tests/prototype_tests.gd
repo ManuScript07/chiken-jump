@@ -56,10 +56,10 @@ func _run() -> void:
 	level.restart()
 	await steps(5)
 	var start_x := level.player.position.x
-	touch(4, level.hud.RIGHT.get_center(), true)
+	touch(4, level.hud.action_rect("right").get_center(), true)
 	await steps(10)
 	check(level.player.position.x > start_x + 5, "movement responds to touch")
-	touch(5, level.hud.JUMP.get_center(), true)
+	touch(5, level.hud.action_rect("jump").get_center(), true)
 	await steps(3)
 	check(level.player.velocity.y < -300, "movement and jump can be held together")
 	check(absf(level.player.avatar.spin) > 0.1 and absf(level.player.rotation) < 0.001, "airborne square rotates without rotating its collider")
@@ -72,7 +72,7 @@ func _run() -> void:
 	touch(5, Vector2.ZERO, false)
 	check(level.hud.horizontal_input() == 0, "release clears touch movement")
 	await steps(90)
-	check(level.player.is_on_floor() and absf(level.player.avatar.spin - snappedf(level.player.avatar.spin, PI / 2.0)) < 0.001, "landing aligns the square to a quarter turn")
+	check(level.player.is_on_floor() and absf(level.player.avatar.spin-level.player.avatar.ground_angle-snappedf(level.player.avatar.spin-level.player.avatar.ground_angle,PI/2.0)) < 0.001, "landing aligns the square to a quarter turn")
 	check(level.player.avatar.trail.is_empty(), "old trail fades after landing")
 	var cam := level.diorama.camera
 	var corners := [DESIGN.canvas_to_wall(Vector2(0,280)), DESIGN.canvas_to_wall(Vector2(540,280)), DESIGN.canvas_to_wall(Vector2(540,620)), DESIGN.canvas_to_wall(Vector2(0,620))]
@@ -80,8 +80,8 @@ func _run() -> void:
 	for corner: Vector3 in corners:
 		screen.append(cam.unproject_position(corner))
 	check(absf(screen[0].y-screen[1].y)<20.0 and absf(screen[2].y-screen[3].y)<20.0 and absf(screen[0].x-screen[3].x)<40.0 and absf(screen[1].x-screen[2].x)<40.0, "wall perspective remains gentle and readable")
-	var hud_source := FileAccess.get_file_as_string("res://scripts/game_hud.gd")
-	check(not hud_source.contains("draw_string"), "game interface uses icons without text")
+	var key_source := FileAccess.get_file_as_string("res://scripts/sculpted_key.gd")
+	check(not key_source.contains("draw_string"),"physical controls have no printed text or glyphs")
 	level.restart()
 	# The reference installation has no dangerous object; inject a physical test fixture.
 	var hazard_piece := {"id":"test_hazard", "primitive":"box", "center":Vector3(0,0.35,1.0), "size":Vector3(0.3,0.7,0.3), "color":Color.RED, "hazard":true}
@@ -98,19 +98,23 @@ func _run() -> void:
 	center /= hazard.size()
 	level.player.position = center
 	await steps(3)
-	check(level.player.position.distance_to(DESIGN.PLAYER_START) < 4, "projected physical hazard restarts attempt")
+	check(level.session.state==RunSession.State.FINISHED and level.session.end_reason==RunSession.EndReason.HAZARD,"projected physical hazard ends attempt")
 	level.field.pieces.pop_back()
 	level.field.update_projection(true)
 	hazard_mesh.queue_free()
+	level.restart()
 	for star in DESIGN.STAR_POSITIONS:
 		level.player.position = star
 		level.player.velocity = Vector2.ZERO
 		await steps(2)
-	check(level.completed and level.hud.stars == 3, "all stars complete the course")
-	touch(8, level.hud.REPLAY.get_center(), true)
-	touch(8, level.hud.REPLAY.get_center(), false)
+	check(level.session.waves_completed==1 and level.session.total_stars==3,"all stars complete the first wave")
+	level.session.pause()
+	touch(8,level.hud.action_rect("right").get_center(),true)
+	touch(8,Vector2.ZERO,false)
+	touch(9,level.hud.action_rect("jump").get_center(),true)
+	touch(9,Vector2.ZERO,false)
 	await steps(3)
 	check(level.player.avatar.trail.is_empty() and absf(level.player.avatar.spin) < 0.001, "restart clears square animation")
-	check(not level.completed and level.hud.stars == 0, "restart restores playable state")
+	check(level.session.state==RunSession.State.RUNNING and level.session.total_stars==0, "restart restores playable state")
 	print("RESULT: ", failures, " failures")
 	quit(0 if failures == 0 else 1)
